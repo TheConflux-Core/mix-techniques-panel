@@ -9,6 +9,7 @@ import type { Submission } from "@/lib/types";
 import Navbar from "@/components/Navbar";
 import PullReveal from "@/components/PullReveal";
 import PulledList from "@/components/PulledList";
+import { useOverlaySocket } from "@/lib/useOverlaySocket";
 
 export default function PullPage() {
   const [phase, setPhase] = useState<"idle" | "pulling" | "revealed">("idle");
@@ -20,6 +21,7 @@ export default function PullPage() {
   const [resetting, setResetting] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+  const { connected, pushContestant, pushTrack, pushSegment } = useOverlaySocket();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -71,6 +73,19 @@ export default function PullPage() {
       if (!res.ok) { const body = await res.json(); throw new Error(body.error || "Failed to confirm pull"); }
       const confirmed = await res.json();
       setPulled((prev) => [confirmed, ...prev]); setCurrentSubmission(null); setPhase("idle");
+
+      // Push contestant data to WS server for overlays
+      pushContestant({
+        name: confirmed.name,
+        city: confirmed.location || "",
+        genre: confirmed.genre || "",
+        handle: confirmed.social_links?.instagram || "",
+      });
+      if (confirmed.track_title) {
+        pushTrack({ title: confirmed.track_title, artist: confirmed.name });
+      }
+      pushSegment("THE_PULL");
+
       await fetchPoolSize();
     } catch (err: any) { setError(err.message); }
     finally { setLoading(false); }
@@ -110,6 +125,12 @@ export default function PullPage() {
               <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-sm mt-2 uppercase tracking-wider">
                 Who&apos;s next?
               </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full transition-all ${connected ? "bg-green-500 shadow-[0_0_6px_rgba(76,175,80,0.5)]" : "bg-red-500"}`} />
+              <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-wider" style={{ color: connected ? "rgba(76,175,80,0.6)" : "rgba(196,57,42,0.5)" }}>
+                {connected ? "Overlays Live" : "Overlays Offline"}
+              </span>
             </div>
             <button
               onClick={handleResetPool}
