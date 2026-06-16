@@ -392,12 +392,22 @@ export default function ShowRunnerClient() {
               </div>
 
               {!showSetup && (
-                <button
-                  onClick={() => { setEditingEpisode(null); setShowSetup(true); }}
-                  className="font-[family-name:var(--font-mono)] text-sm text-[#1A0F0A] bg-[#D4A843] hover:bg-[#E89B2E] transition-colors px-4 py-2 rounded font-semibold"
-                >
-                  + New Episode
-                </button>
+                <>
+                  {activeEpisode && (
+                    <button
+                      onClick={() => { setActiveEpisode(null); setContestants([]); }}
+                      className="font-[family-name:var(--font-mono)] text-sm text-[#F0E6D3]/50 hover:text-[#D4A843] transition-colors border border-[#3A2818] hover:border-[#D4A843]/40 px-4 py-2 rounded"
+                    >
+                      ← Back
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setEditingEpisode(null); setShowSetup(true); }}
+                    className="font-[family-name:var(--font-mono)] text-sm text-[#1A0F0A] bg-[#D4A843] hover:bg-[#E89B2E] transition-colors px-4 py-2 rounded font-semibold"
+                  >
+                    + New Episode
+                  </button>
+                </>
               )}
             </div>
           </div>
