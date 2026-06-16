@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("submissions")
-      .select("*")
+      .select("*, episodes(episode_number, title)")
       .order("created_at", { ascending: false });
 
     if (genre && genre !== "all") {

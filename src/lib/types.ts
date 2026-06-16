@@ -48,6 +48,7 @@ export interface Submission {
   pull_order: number | null;
   status: "submitted" | "under_review" | "selected" | "aired" | "scored";
   episode_id: string | null;
+  episodes?: { episode_number: number; title: string | null } | null;
   season_id: number | null;
   created_at: string;
   updated_at: string;

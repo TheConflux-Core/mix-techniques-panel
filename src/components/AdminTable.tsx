@@ -79,6 +79,7 @@ export default function AdminTable({ submissions, onStatusChange }: AdminTablePr
           <thead>
             <tr className="border-b border-[#3A2818]">
               <th className="text-left py-3 px-4 text-[#D4A843] uppercase tracking-wider text-xs font-medium">Name</th>
+              <th className="text-left py-3 px-4 text-[#D4A843] uppercase tracking-wider text-xs font-medium">Episode</th>
               <th className="text-left py-3 px-4 text-[#D4A843] uppercase tracking-wider text-xs font-medium">Genre</th>
               <th className="text-left py-3 px-4 text-[#D4A843] uppercase tracking-wider text-xs font-medium">Track Title</th>
               <th className="text-left py-3 px-4 text-[#D4A843] uppercase tracking-wider text-xs font-medium">Status</th>
@@ -89,7 +90,7 @@ export default function AdminTable({ submissions, onStatusChange }: AdminTablePr
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-12 text-center text-[#F0E6D3]/30">
+                <td colSpan={7} className="py-12 text-center text-[#F0E6D3]/30">
                   No submissions found.
                 </td>
               </tr>
@@ -103,6 +104,9 @@ export default function AdminTable({ submissions, onStatusChange }: AdminTablePr
                     onClick={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
                   >
                     <td className="py-3 px-4 text-[#F0E6D3]">{sub.name}</td>
+                    <td className="py-3 px-4 text-[#F0E6D3]/60">
+                      {sub.episodes ? `Ep.${String(sub.episodes.episode_number).padStart(2, "0")}` : "—"}
+                    </td>
                     <td className="py-3 px-4 text-[#F0E6D3]/70">{getGenreLabel(sub.genre)}</td>
                     <td className="py-3 px-4 text-[#F0E6D3]/70">{sub.track_title || "—"}</td>
                     <td className="py-3 px-4">
@@ -125,7 +129,7 @@ export default function AdminTable({ submissions, onStatusChange }: AdminTablePr
                   </tr>
                   {expandedId === sub.id && (
                     <tr key={`${sub.id}-expanded`}>
-                      <td colSpan={6} className="bg-[#0F0A07] px-6 py-4">
+                      <td colSpan={7} className="bg-[#0F0A07] px-6 py-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <p className="text-xs text-[#F0E6D3]/50 mb-1 uppercase tracking-wider">Email</p>
