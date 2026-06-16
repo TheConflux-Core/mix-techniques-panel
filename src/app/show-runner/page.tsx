@@ -573,6 +573,8 @@ export default function ShowRunnerPage() {
                       className={`font-[family-name:var(--font-mono)] text-xs px-3 py-1 rounded uppercase tracking-wider ${
                         ep.status === "active" || ep.status === "live"
                           ? "text-green-400 border border-green-800"
+                          : ep.status === "setup"
+                          ? "text-blue-400 border border-blue-800"
                           : ep.status === "published"
                           ? "text-purple-400 border border-purple-800"
                           : ep.status === "post_production"

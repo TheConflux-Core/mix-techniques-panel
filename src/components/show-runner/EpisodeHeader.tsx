@@ -10,6 +10,8 @@ interface EpisodeHeaderProps {
 }
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; border: string; label: string }> = {
+  setup: { bg: "bg-blue-900/30", text: "text-blue-400", border: "border-blue-600", label: "Setup" },
+  active: { bg: "bg-[#D4A843]/10", text: "text-[#D4A843]", border: "border-[#D4A843]/40", label: "Active" },
   planned: { bg: "bg-gray-700/30", text: "text-gray-400", border: "border-gray-600", label: "Planned" },
   ready: { bg: "bg-[#D4A843]/10", text: "text-[#D4A843]", border: "border-[#D4A843]/40", label: "Ready" },
   live: { bg: "bg-green-900/30", text: "text-green-400", border: "border-green-600", label: "LIVE" },
