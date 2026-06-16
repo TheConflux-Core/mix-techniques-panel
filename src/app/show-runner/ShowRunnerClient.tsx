@@ -96,11 +96,9 @@ export default function ShowRunnerClient() {
         if (active) {
           setActiveEpisode(active);
           fetchContestants(active.id, session.access_token);
-        } else if (data.length > 0) {
-          // Fall back to most recent episode
-          setActiveEpisode(data[0]);
-          fetchContestants(data[0].id, session.access_token);
         }
+        // Published/post_production episodes stay in the list only,
+        // not the main control area — show "No active episode" instead.
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
