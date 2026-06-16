@@ -35,7 +35,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { id } = await params;
     const body = await request.json();
 
-    const allowedFields = ["title", "air_date", "status", "youtube_url", "podcast_url", "guest_judges"];
+    const allowedFields = ["title", "air_date", "status", "youtube_url", "podcast_url", "guest_judges", "description"];
     const updateData: Record<string, any> = {};
     for (const field of allowedFields) {
       if (body[field] !== undefined) updateData[field] = body[field];

@@ -93,11 +93,15 @@ export default function ShowRunnerPage() {
       if (res.ok) {
         const data = await res.json();
         setEpisodes(data);
-        // Find an active or live episode
+        // Find an active or live episode first
         const live = data.find((e: Episode) => e.status === "active" || e.status === "live");
         if (live) {
           setActiveEpisode(live);
           fetchContestants(live.id, session.access_token);
+        } else if (data.length > 0) {
+          // Fall back to most recent episode
+          setActiveEpisode(data[0]);
+          fetchContestants(data[0].id, session.access_token);
         }
       }
     } catch { /* silent */ }
@@ -302,6 +306,40 @@ export default function ShowRunnerPage() {
 
   const isLive = activeEpisode?.status === "live" || activeEpisode?.status === "active";
 
+  // Status transition handler
+  const handleStatusChange = useCallback(async (newStatus: string) => {
+    if (!activeEpisode) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch(`/api/episodes/${activeEpisode.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setActiveEpisode(updated);
+        setEpisodes((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+        pushEpisodeStatus(newStatus);
+      }
+    } catch { /* silent */ }
+  }, [activeEpisode, pushEpisodeStatus]);
+
+  // Next status based on current
+  const getNextStatus = (current: string): { label: string; status: string; color: string } | null => {
+    switch (current) {
+      case "setup": return { label: "Activate Episode", status: "active", color: "bg-[#D4A843] hover:bg-[#E89B2E] text-[#1A0F0A]" };
+      case "active": return { label: "🔴 Go Live", status: "live", color: "bg-green-700 hover:bg-green-600 text-white" };
+      case "live": return { label: "End Show", status: "post_production", color: "bg-amber-700 hover:bg-amber-600 text-white" };
+      case "post_production": return { label: "Publish Episode", status: "published", color: "bg-purple-700 hover:bg-purple-600 text-white" };
+      default: return null;
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen relative">
       <div className="fixed inset-0 carbon-fiber pointer-events-none" />
@@ -433,18 +471,52 @@ export default function ShowRunnerPage() {
               />
             </>
           ) : activeEpisode ? (
-            /* Episode exists but not live — show details with option to set up */
-            <div className="card-float noise carbon-fiber-walnut rounded-xl p-6 relative overflow-hidden mb-8">
+            /* Episode exists but not live — show details with status controls */
+            <div className="space-y-6 mb-8">
               <EpisodeHeader
                 episode={activeEpisode}
                 contestants={contestants}
                 isLive={false}
                 timerSeconds={0}
               />
-              <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-sm text-center py-4">
-                Episode is in <span className="text-[#D4A843]">{activeEpisode.status}</span> status.
-                Set status to &quot;active&quot; or &quot;live&quot; to enable controls.
-              </p>
+
+              {/* Status transition controls */}
+              <div className="card-float noise carbon-fiber-walnut rounded-xl p-6 relative overflow-hidden">
+                <div className="flex flex-col items-center gap-4">
+                  <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/50 text-sm text-center">
+                    Episode is in <span className="text-[#D4A843] font-semibold">{activeEpisode.status}</span> status.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    {(() => {
+                      const next = getNextStatus(activeEpisode.status);
+                      if (next) {
+                        return (
+                          <button
+                            onClick={() => handleStatusChange(next.status)}
+                            className={`font-[family-name:var(--font-mono)] text-sm px-6 py-3 rounded font-semibold tracking-wider uppercase transition-colors ${next.color}`}
+                          >
+                            {next.label}
+                          </button>
+                        );
+                      }
+                      return null;
+                    })()}
+                    {activeEpisode.status === "setup" && (
+                      <button
+                        onClick={() => setShowSetup(true)}
+                        className="font-[family-name:var(--font-mono)] text-sm text-[#F0E6D3]/70 hover:text-[#D4A843] border border-[#3A2818] hover:border-[#D4A843]/40 px-4 py-3 rounded transition-colors"
+                      >
+                        Edit / Pull Contestants
+                      </button>
+                    )}
+                  </div>
+                  {activeEpisode.status === "setup" && contestants.length === 0 && (
+                    <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-xs text-center">
+                      Tip: Use "Edit / Pull Contestants" to assign submissions before activating.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           ) : (
             /* No episode at all */
