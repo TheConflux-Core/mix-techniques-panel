@@ -41,6 +41,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (body[field] !== undefined) updateData[field] = body[field];
     }
 
+    // Normalize guest_judges string → array
+    if (updateData.guest_judges && typeof updateData.guest_judges === "string") {
+      updateData.guest_judges = updateData.guest_judges.split(",").map((s: string) => s.trim()).filter(Boolean);
+    }
+
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }

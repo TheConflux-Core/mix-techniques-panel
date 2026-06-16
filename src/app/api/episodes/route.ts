@@ -45,12 +45,15 @@ export async function POST(request: NextRequest) {
     // If no season_id provided, get or create current season
     let resolvedSeasonId = season_id;
     if (!resolvedSeasonId) {
-      const { data: seasons } = await supabase
+      const { data: seasons, error: seasonErr } = await supabase
         .from("seasons")
         .select("id")
         .eq("status", "active")
         .limit(1)
-        .single();
+        .maybeSingle();
+      if (seasonErr) {
+        console.error("Season lookup error:", seasonErr);
+      }
       resolvedSeasonId = seasons?.id || 1;
     }
 
@@ -61,7 +64,14 @@ export async function POST(request: NextRequest) {
     };
     if (title) insertData.title = title;
     if (air_date) insertData.air_date = air_date;
-    if (guest_judges) insertData.guest_judges = guest_judges;
+    // guest_judges may arrive as a comma-separated string from the UI — normalize to array
+    if (guest_judges) {
+      if (Array.isArray(guest_judges)) {
+        insertData.guest_judges = guest_judges;
+      } else if (typeof guest_judges === "string") {
+        insertData.guest_judges = guest_judges.split(",").map((s: string) => s.trim()).filter(Boolean);
+      }
+    }
 
     const { data, error } = await supabase
       .from("episodes")
