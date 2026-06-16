@@ -93,11 +93,11 @@ export default function ShowRunnerPage() {
       if (res.ok) {
         const data = await res.json();
         setEpisodes(data);
-        // Find a live or ready episode first
-        const live = data.find((e: Episode) => e.status === "live" || e.status === "ready");
-        if (live) {
-          setActiveEpisode(live);
-          fetchContestants(live.id, session.access_token);
+        // Find a live, ready, or setup episode first (not published/post_production)
+        const active = data.find((e: Episode) => ["live", "ready", "setup"].includes(e.status));
+        if (active) {
+          setActiveEpisode(active);
+          fetchContestants(active.id, session.access_token);
         } else if (data.length > 0) {
           // Fall back to most recent episode
           setActiveEpisode(data[0]);
