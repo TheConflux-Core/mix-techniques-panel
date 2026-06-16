@@ -22,6 +22,7 @@ export default function ShowRunnerClient() {
   const [contestants, setContestants] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSetup, setShowSetup] = useState(false);
+  const [editingEpisode, setEditingEpisode] = useState<Episode | null>(null);
 
   // Live control state
   const [currentSegment, setCurrentSegment] = useState("COLD_OPEN");
@@ -392,7 +393,7 @@ export default function ShowRunnerClient() {
 
               {!showSetup && (
                 <button
-                  onClick={() => setShowSetup(true)}
+                  onClick={() => { setEditingEpisode(null); setShowSetup(true); }}
                   className="font-[family-name:var(--font-mono)] text-sm text-[#1A0F0A] bg-[#D4A843] hover:bg-[#E89B2E] transition-colors px-4 py-2 rounded font-semibold"
                 >
                   + New Episode
@@ -400,7 +401,7 @@ export default function ShowRunnerClient() {
               )}
               {showSetup && (
                 <button
-                  onClick={() => setShowSetup(false)}
+                  onClick={() => { setShowSetup(false); setEditingEpisode(null); }}
                   className="font-[family-name:var(--font-mono)] text-sm text-[#F0E6D3]/70 hover:text-[#D4A843] border border-[#3A2818] hover:border-[#D4A843]/40 px-4 py-2 rounded transition-colors"
                 >
                   Cancel
@@ -418,7 +419,17 @@ export default function ShowRunnerClient() {
             </div>
           ) : showSetup ? (
             <div className="mb-8">
-              <EpisodeSetup onEpisodeCreated={handleEpisodeCreated} />
+              <EpisodeSetup
+                initialEpisode={editingEpisode}
+                onEpisodeCreated={handleEpisodeCreated}
+                onEpisodeUpdated={(updated) => {
+                  setEpisodes((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+                  if (activeEpisode?.id === updated.id) setActiveEpisode(updated);
+                  setShowSetup(false);
+                  setEditingEpisode(null);
+                }}
+                onCancel={() => { setShowSetup(false); setEditingEpisode(null); }}
+              />
             </div>
           ) : activeEpisode && (isLive || isReady) ? (
             <>
@@ -569,18 +580,10 @@ export default function ShowRunnerClient() {
                       }
                       return null;
                     })()}
-                    {isSetup && (
-                      <button
-                        onClick={() => setShowSetup(true)}
-                        className="font-[family-name:var(--font-mono)] text-sm text-[#F0E6D3]/70 hover:text-[#D4A843] border border-[#3A2818] hover:border-[#D4A843]/40 px-4 py-3 rounded transition-colors"
-                      >
-                        Edit / Pull Contestants
-                      </button>
-                    )}
                   </div>
                   {isSetup && contestants.length === 0 && (
                     <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-xs text-center">
-                      Tip: Use "Edit / Pull Contestants" to assign submissions before locking lineup.
+                      Tip: Use the episode page to assign submissions and manage contestants.
                     </p>
                   )}
                 </div>
@@ -615,22 +618,24 @@ export default function ShowRunnerClient() {
             ) : (
               <div className="space-y-2">
                 {episodes.map((ep) => (
-                  <button
+                  <div
                     key={ep.id}
-                    onClick={() => {
-                      setActiveEpisode(ep);
-                      setShowSetup(false);
-                      supabase.auth.getSession().then(({ data: { session } }) => {
-                        if (session) fetchContestants(ep.id, session.access_token);
-                      });
-                    }}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded border transition-colors text-left ${
+                    className={`flex items-center justify-between px-4 py-3 rounded border transition-colors ${
                       activeEpisode?.id === ep.id
                         ? "border-[#D4A843]/40 bg-[#D4A843]/5"
                         : "border-[#3A2818] bg-[#1A0F0A]/50 hover:border-[#D4A843]/20"
                     }`}
                   >
-                    <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => {
+                        setActiveEpisode(ep);
+                        setShowSetup(false);
+                        supabase.auth.getSession().then(({ data: { session } }) => {
+                          if (session) fetchContestants(ep.id, session.access_token);
+                        });
+                      }}
+                      className="flex-1 flex items-center gap-4 text-left"
+                    >
                       <span className="font-[family-name:var(--font-mono)] text-[#D4A843]/60 text-xs w-12">
                         Ep.{String(ep.episode_number).padStart(2, "0")}
                       </span>
@@ -644,25 +649,38 @@ export default function ShowRunnerClient() {
                           </p>
                         )}
                       </div>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`font-[family-name:var(--font-mono)] text-xs px-3 py-1 rounded uppercase tracking-wider ${
+                          ep.status === "live"
+                            ? "text-green-400 border border-green-800"
+                            : ep.status === "ready"
+                            ? "text-[#D4A843] border border-[#D4A843]/40"
+                            : ep.status === "setup"
+                            ? "text-blue-400 border border-blue-800"
+                            : ep.status === "published"
+                            ? "text-purple-400 border border-purple-800"
+                            : ep.status === "post_production"
+                            ? "text-amber-400 border border-amber-800"
+                            : "text-[#F0E6D3]/40 border border-[#3A2818]"
+                        }`}
+                      >
+                        {ep.status}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingEpisode(ep);
+                          setShowSetup(true);
+                        }}
+                        className="font-[family-name:var(--font-mono)] text-xs text-[#F0E6D3]/40 hover:text-[#D4A843] transition-colors px-2 py-1 rounded border border-transparent hover:border-[#D4A843]/20"
+                        title="Edit episode"
+                      >
+                        ✏️
+                      </button>
                     </div>
-                    <span
-                      className={`font-[family-name:var(--font-mono)] text-xs px-3 py-1 rounded uppercase tracking-wider ${
-                        ep.status === "live"
-                          ? "text-green-400 border border-green-800"
-                          : ep.status === "ready"
-                          ? "text-[#D4A843] border border-[#D4A843]/40"
-                          : ep.status === "setup"
-                          ? "text-blue-400 border border-blue-800"
-                          : ep.status === "published"
-                          ? "text-purple-400 border border-purple-800"
-                          : ep.status === "post_production"
-                          ? "text-amber-400 border border-amber-800"
-                          : "text-[#F0E6D3]/40 border border-[#3A2818]"
-                      }`}
-                    >
-                      {ep.status}
-                    </span>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
