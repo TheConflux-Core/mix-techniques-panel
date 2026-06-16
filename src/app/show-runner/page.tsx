@@ -93,8 +93,8 @@ export default function ShowRunnerPage() {
       if (res.ok) {
         const data = await res.json();
         setEpisodes(data);
-        // Find an active or live episode first
-        const live = data.find((e: Episode) => e.status === "active" || e.status === "live");
+        // Find a live or ready episode first
+        const live = data.find((e: Episode) => e.status === "live" || e.status === "ready");
         if (live) {
           setActiveEpisode(live);
           fetchContestants(live.id, session.access_token);
@@ -304,7 +304,10 @@ export default function ShowRunnerPage() {
     } catch { /* silent */ }
   }, [activeEpisode, pushEpisodeStatus]);
 
-  const isLive = activeEpisode?.status === "live" || activeEpisode?.status === "active";
+  const isLive = activeEpisode?.status === "live";
+  const isReady = activeEpisode?.status === "ready";
+  const isSetup = activeEpisode?.status === "setup";
+  const controlsEnabled = isLive || isReady; // Show full controls when ready or live
 
   // Status transition handler
   const handleStatusChange = useCallback(async (newStatus: string) => {
@@ -325,17 +328,42 @@ export default function ShowRunnerPage() {
         setActiveEpisode(updated);
         setEpisodes((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
         pushEpisodeStatus(newStatus);
+        // Auto-start timer when going live
+        if (newStatus === "live") {
+          setTimerSeconds(0);
+          setTimerRunning(true);
+        }
       }
     } catch { /* silent */ }
   }, [activeEpisode, pushEpisodeStatus]);
 
   // Next status based on current
-  const getNextStatus = (current: string): { label: string; status: string; color: string } | null => {
+  const getNextStatus = (current: string): { label: string; status: string; color: string; desc: string } | null => {
     switch (current) {
-      case "setup": return { label: "Activate Episode", status: "active", color: "bg-[#D4A843] hover:bg-[#E89B2E] text-[#1A0F0A]" };
-      case "active": return { label: "🔴 Go Live", status: "live", color: "bg-green-700 hover:bg-green-600 text-white" };
-      case "live": return { label: "End Show", status: "post_production", color: "bg-amber-700 hover:bg-amber-600 text-white" };
-      case "post_production": return { label: "Publish Episode", status: "published", color: "bg-purple-700 hover:bg-purple-600 text-white" };
+      case "setup": return {
+        label: "Lock Lineup",
+        status: "ready",
+        color: "bg-[#D4A843] hover:bg-[#E89B2E] text-[#1A0F0A]",
+        desc: "Closes submissions, locks contestant order."
+      };
+      case "ready": return {
+        label: "🔴 GO LIVE",
+        status: "live",
+        color: "bg-green-700 hover:bg-green-600 text-white animate-pulse",
+        desc: "Starts timer, opens broadcast. Viewers can see overlays."
+      };
+      case "live": return {
+        label: "End Show",
+        status: "post_production",
+        color: "bg-amber-700 hover:bg-amber-600 text-white",
+        desc: "Stops timer, closes voting."
+      };
+      case "post_production": return {
+        label: "Publish Episode",
+        status: "published",
+        color: "bg-purple-700 hover:bg-purple-600 text-white",
+        desc: "Finalizes scores, updates leaderboard."
+      };
       default: return null;
     }
   };
@@ -388,13 +416,13 @@ export default function ShowRunnerPage() {
             <div className="mb-8">
               <EpisodeSetup onEpisodeCreated={handleEpisodeCreated} />
             </div>
-          ) : activeEpisode && isLive ? (
+          ) : activeEpisode && (isLive || isReady) ? (
             <>
               {/* Episode Header */}
               <EpisodeHeader
                 episode={activeEpisode}
                 contestants={contestants}
-                isLive={isLive}
+                isLive={isLive || isReady}
                 timerSeconds={timerSeconds}
               />
 
@@ -482,26 +510,56 @@ export default function ShowRunnerPage() {
 
               {/* Status transition controls */}
               <div className="card-float noise carbon-fiber-walnut rounded-xl p-6 relative overflow-hidden">
-                <div className="flex flex-col items-center gap-4">
-                  <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/50 text-sm text-center">
-                    Episode is in <span className="text-[#D4A843] font-semibold">{activeEpisode.status}</span> status.
-                  </p>
+                <div className="flex flex-col items-center gap-5">
+                  {/* Current state description */}
+                  <div className="text-center">
+                    <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/50 text-sm">
+                      Episode is in <span className="text-[#D4A843] font-semibold">{activeEpisode.status}</span> status.
+                    </p>
+                    {isSetup && (
+                      <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-xs mt-1">
+                        Submissions are open. Pull contestants and configure the episode.
+                      </p>
+                    )}
+                    {activeEpisode.status === "ready" && (
+                      <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-xs mt-1">
+                        Lineup locked. Submissions closed. Ready to go live.
+                      </p>
+                    )}
+                    {activeEpisode.status === "post_production" && (
+                      <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-xs mt-1">
+                        Show ended. Review scores and finalize before publishing.
+                      </p>
+                    )}
+                    {activeEpisode.status === "published" && (
+                      <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-xs mt-1">
+                        Episode complete. Leaderboard updated.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Action buttons */}
                   <div className="flex flex-wrap items-center justify-center gap-3">
                     {(() => {
                       const next = getNextStatus(activeEpisode.status);
                       if (next) {
                         return (
-                          <button
-                            onClick={() => handleStatusChange(next.status)}
-                            className={`font-[family-name:var(--font-mono)] text-sm px-6 py-3 rounded font-semibold tracking-wider uppercase transition-colors ${next.color}`}
-                          >
-                            {next.label}
-                          </button>
+                          <div className="flex flex-col items-center gap-2">
+                            <button
+                              onClick={() => handleStatusChange(next.status)}
+                              className={`font-[family-name:var(--font-mono)] text-sm px-8 py-3 rounded font-semibold tracking-wider uppercase transition-colors ${next.color}`}
+                            >
+                              {next.label}
+                            </button>
+                            <span className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/25 text-xs">
+                              {next.desc}
+                            </span>
+                          </div>
                         );
                       }
                       return null;
                     })()}
-                    {activeEpisode.status === "setup" && (
+                    {isSetup && (
                       <button
                         onClick={() => setShowSetup(true)}
                         className="font-[family-name:var(--font-mono)] text-sm text-[#F0E6D3]/70 hover:text-[#D4A843] border border-[#3A2818] hover:border-[#D4A843]/40 px-4 py-3 rounded transition-colors"
@@ -510,9 +568,9 @@ export default function ShowRunnerPage() {
                       </button>
                     )}
                   </div>
-                  {activeEpisode.status === "setup" && contestants.length === 0 && (
+                  {isSetup && contestants.length === 0 && (
                     <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-xs text-center">
-                      Tip: Use "Edit / Pull Contestants" to assign submissions before activating.
+                      Tip: Use "Edit / Pull Contestants" to assign submissions before locking lineup.
                     </p>
                   )}
                 </div>
@@ -571,8 +629,10 @@ export default function ShowRunnerPage() {
                     </div>
                     <span
                       className={`font-[family-name:var(--font-mono)] text-xs px-3 py-1 rounded uppercase tracking-wider ${
-                        ep.status === "active" || ep.status === "live"
+                        ep.status === "live"
                           ? "text-green-400 border border-green-800"
+                          : ep.status === "ready"
+                          ? "text-[#D4A843] border border-[#D4A843]/40"
                           : ep.status === "setup"
                           ? "text-blue-400 border border-blue-800"
                           : ep.status === "published"
