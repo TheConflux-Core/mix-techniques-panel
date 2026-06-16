@@ -14,6 +14,7 @@ export interface Episode {
   title: string | null;
   air_date: string | null;
   status: string;
+  submissions_open: boolean;
   youtube_url: string | null;
   podcast_url: string | null;
   guest_judges: string[];

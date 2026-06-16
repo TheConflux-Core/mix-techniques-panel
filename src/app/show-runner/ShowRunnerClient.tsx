@@ -338,10 +338,10 @@ export default function ShowRunnerClient() {
   const getNextStatus = (current: string): { label: string; status: string; color: string; desc: string } | null => {
     switch (current) {
       case "setup": return {
-        label: "Lock Lineup",
-        status: "ready",
+        label: "📂 Open Episode",
+        status: "__navigate__",
         color: "bg-[#D4A843] hover:bg-[#E89B2E] text-[#1A0F0A]",
-        desc: "Closes submissions, locks contestant order."
+        desc: "Open the episode page to manage submissions and contestants."
       };
       case "ready": return {
         label: "🔴 GO LIVE",
@@ -538,7 +538,7 @@ export default function ShowRunnerClient() {
                     </p>
                     {isSetup && (
                       <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-xs mt-1">
-                        Submissions are open. Pull contestants and configure the episode.
+                        Open the episode page to manage submissions and contestants.
                       </p>
                     )}
                     {activeEpisode.status === "ready" && (
@@ -566,7 +566,13 @@ export default function ShowRunnerClient() {
                         return (
                           <div className="flex flex-col items-center gap-2">
                             <button
-                              onClick={() => handleStatusChange(next.status)}
+                              onClick={() => {
+                                if (next.status === "__navigate__") {
+                                  router.push(`/episodes/${activeEpisode.id}`);
+                                } else {
+                                  handleStatusChange(next.status);
+                                }
+                              }}
                               className={`font-[family-name:var(--font-mono)] text-sm px-8 py-3 rounded font-semibold tracking-wider uppercase transition-colors ${next.color}`}
                             >
                               {next.label}
