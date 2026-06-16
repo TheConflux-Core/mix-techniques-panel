@@ -587,9 +587,17 @@ export default function ShowRunnerPage() {
           ) : (
             /* No episode at all */
             <div className="card-float noise carbon-fiber-walnut rounded-xl p-6 relative overflow-hidden mb-8">
-              <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-sm text-center py-8">
-                No active episode. Create one to get started.
-              </p>
+              <div className="flex flex-col items-center gap-4 py-8">
+                <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-sm text-center">
+                  No active episode. Create one to get started.
+                </p>
+                <button
+                  onClick={() => setShowSetup(true)}
+                  className="font-[family-name:var(--font-mono)] text-sm text-[#1A0F0A] bg-[#D4A843] hover:bg-[#E89B2E] transition-colors px-6 py-3 rounded font-semibold tracking-wider uppercase"
+                >
+                  + New Episode
+                </button>
+              </div>
             </div>
           )}
 
