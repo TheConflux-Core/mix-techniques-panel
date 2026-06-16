@@ -16,6 +16,8 @@ export interface Episode {
   status: string;
   youtube_url: string | null;
   podcast_url: string | null;
+  guest_judges: string[];
+  description: string | null;
   created_at: string;
 }
 
@@ -43,6 +45,7 @@ export interface Submission {
   bit_depth: number | null;
   file_format: string | null;
   waveform_data: number[] | null;
+  pull_order: number | null;
   status: "submitted" | "under_review" | "selected" | "aired" | "scored";
   episode_id: string | null;
   season_id: number | null;

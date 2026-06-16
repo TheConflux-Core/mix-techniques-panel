@@ -126,6 +126,48 @@ export function useOverlaySocket() {
     };
   }, [connect]);
 
+  /** Push episode status change */
+  const pushEpisodeStatus = useCallback(
+    (status: string) => {
+      return sendMessage("episode-status", { status });
+    },
+    [sendMessage]
+  );
+
+  /** Push score update to overlays */
+  const pushScoreUpdate = useCallback(
+    (metrics: Record<string, number>, total: number) => {
+      return sendMessage("score-update", { metrics, total });
+    },
+    [sendMessage]
+  );
+
+  /** Lock current scores */
+  const pushLockScore = useCallback(() => {
+    return sendMessage("lock-score", {});
+  }, [sendMessage]);
+
+  /** Push track play event to viewers */
+  const pushPlayTrack = useCallback(
+    (track: { url: string; title: string; artist: string }) => {
+      return sendMessage("play-track", track);
+    },
+    [sendMessage]
+  );
+
+  /** Push track pause event to viewers */
+  const pushPauseTrack = useCallback(() => {
+    return sendMessage("pause-track", {});
+  }, [sendMessage]);
+
+  /** Push track seek event to viewers */
+  const pushSeekTrack = useCallback(
+    (position: number) => {
+      return sendMessage("seek-track", { position });
+    },
+    [sendMessage]
+  );
+
   return {
     connected,
     sendMessage,
@@ -134,5 +176,11 @@ export function useOverlaySocket() {
     pushSegment,
     pushNextContestant,
     pushEpisode,
+    pushEpisodeStatus,
+    pushScoreUpdate,
+    pushLockScore,
+    pushPlayTrack,
+    pushPauseTrack,
+    pushSeekTrack,
   };
 }

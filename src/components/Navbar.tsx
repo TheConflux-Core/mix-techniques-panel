@@ -17,6 +17,12 @@ export default function Navbar() {
             Dashboard
           </Link>
           <Link
+            href="/show-runner"
+            className="nav-link font-[family-name:var(--font-mono)] text-sm text-[#D4A843]/80 hover:text-[#D4A843] transition-colors border border-[#D4A843]/20 hover:border-[#D4A843]/50 px-3 py-1 rounded"
+          >
+            🎬 Show Runner
+          </Link>
+          <Link
             href="/pull"
             className="nav-link font-[family-name:var(--font-mono)] text-sm text-[#D4A843]/80 hover:text-[#D4A843] transition-colors border border-[#D4A843]/20 hover:border-[#D4A843]/50 px-3 py-1 rounded"
           >
