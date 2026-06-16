@@ -394,12 +394,20 @@ export default function ShowRunnerPage() {
                 </span>
               </div>
 
-              {!showSetup && !activeEpisode && (
+              {!showSetup && (
                 <button
                   onClick={() => setShowSetup(true)}
                   className="font-[family-name:var(--font-mono)] text-sm text-[#1A0F0A] bg-[#D4A843] hover:bg-[#E89B2E] transition-colors px-4 py-2 rounded font-semibold"
                 >
                   + New Episode
+                </button>
+              )}
+              {showSetup && (
+                <button
+                  onClick={() => setShowSetup(false)}
+                  className="font-[family-name:var(--font-mono)] text-sm text-[#F0E6D3]/70 hover:text-[#D4A843] border border-[#3A2818] hover:border-[#D4A843]/40 px-4 py-2 rounded transition-colors"
+                >
+                  Cancel
                 </button>
               )}
             </div>
