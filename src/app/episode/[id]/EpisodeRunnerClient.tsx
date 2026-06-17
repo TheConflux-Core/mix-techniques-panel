@@ -50,7 +50,6 @@ export default function EpisodeRunnerClient() {
   const [hostMetrics, setHostMetrics] = useState<MetricScores>({ ...emptyMetrics });
   const [viewerMetrics, setViewerMetrics] = useState<MetricScores>({ ...emptyMetrics });
   const [viewerVotes, setViewerVotes] = useState(0);
-  const [metricVotes, setMetricVotes] = useState<Record<string, number>>({});
   const [scoreLocked, setScoreLocked] = useState(false);
   const [votingClosed, setVotingClosed] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -63,7 +62,7 @@ export default function EpisodeRunnerClient() {
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const { connected, sendMessage, pushSegment, pushContestant, pushTrack, pushEpisode, pushEpisodeStatus, pushScoreUpdate, pushLockScore, pushPlayTrack, pushPauseTrack } = useOverlaySocket();
+  const { connected, sendMessage, pushSegment, pushContestant, pushTrack, pushEpisodeStatus, pushLockScore, pushPlayTrack, pushPauseTrack } = useOverlaySocket();
 
   const isLive = episode?.status === "live";
   const isReady = episode?.status === "ready";
@@ -82,6 +81,7 @@ export default function EpisodeRunnerClient() {
 
   const getNextStatus = (current: string) => {
     switch (current) {
+      case "setup": return { label: "✅ Mark Ready", status: "ready", desc: "Lock lineup, close submissions." };
       case "ready": return { label: "🔴 GO LIVE", status: "live", desc: "Start broadcast." };
       case "live": return { label: "End Show", status: "post_production", desc: "Stop broadcast." };
       case "post_production": return { label: "Publish", status: "published", desc: "Finalize scores, update leaderboard." };
@@ -332,7 +332,6 @@ export default function EpisodeRunnerClient() {
     setHostMetrics({ ...emptyMetrics });
     setViewerMetrics({ ...emptyMetrics });
     setViewerVotes(0);
-    setMetricVotes({});
     setScoreLocked(false);
     setVotingClosed(false);
   }, [sendMessage]);
