@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     const insertData: Record<string, any> = {
       episode_number,
       season_id: resolvedSeasonId,
-      status: "setup",
+      status: "ready",
     };
     if (title) insertData.title = title;
     if (air_date) insertData.air_date = air_date;

@@ -53,7 +53,6 @@ export default function StandbyClient() {
 
   const isLive = episode?.status === "live";
   const isReady = episode?.status === "ready";
-  const isSetup = episode?.status === "setup";
   const controlsEnabled = isLive || isReady;
 
   // Timer interval
@@ -86,7 +85,7 @@ export default function StandbyClient() {
       });
       if (res.ok) {
         const data = await res.json();
-        const active = data.find((e: Episode) => ["live", "ready", "setup"].includes(e.status));
+        const active = data.find((e: Episode) => ["live", "ready"].includes(e.status));
         if (active) {
           setEpisode(active);
           fetchContestants(active.id, session.access_token);
@@ -422,14 +421,7 @@ export default function StandbyClient() {
                   Episode is in <span className="text-[#D4A843]">{episode.status}</span> status.
                 </p>
                 <div className="flex items-center gap-3">
-                  {episode.status === "setup" && (
-                    <button
-                      onClick={() => handleStatusChange("ready")}
-                      className="font-[family-name:var(--font-mono)] text-sm bg-[#D4A843] hover:bg-[#E89B2E] text-[#1A0F0A] px-8 py-3 rounded font-semibold tracking-wider uppercase transition-colors"
-                    >
-                      Lock Lineup
-                    </button>
-                  )}
+
                 </div>
               </div>
             </div>

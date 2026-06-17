@@ -67,3 +67,34 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+// DELETE /api/episodes/[id] — delete episode
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { id } = await params;
+
+    // Unassign any contestants first
+    await supabase
+      .from("submissions")
+      .update({ episode_id: null, status: "submitted" })
+      .eq("episode_id", id);
+
+    const { error } = await supabase
+      .from("episodes")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Episode delete error:", error);
+      return NextResponse.json({ error: "Failed to delete episode" }, { status: 500 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error("Episode DELETE error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
