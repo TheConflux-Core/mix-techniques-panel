@@ -147,6 +147,41 @@ export default function EpisodeRunnerClient() {
     init();
   }, [fetchEpisode, fetchAvailable]);
 
+  // ─── Realtime: listen for new submissions ─────────────────
+  useEffect(() => {
+    if (!episodeId) return;
+    const channel = supabase
+      .channel("submissions-changes")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "submissions" },
+        () => {
+          // Refetch both lists when a new submission arrives
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+              fetchContestants(episodeId, session.access_token);
+              fetchAvailable();
+            }
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "submissions" },
+        () => {
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+              fetchContestants(episodeId, session.access_token);
+              fetchAvailable();
+            }
+          });
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [episodeId, fetchContestants, fetchAvailable]);
+
   // Fetch contestants when episode loads
   useEffect(() => {
     if (episode) {
