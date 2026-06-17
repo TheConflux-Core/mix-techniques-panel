@@ -1,11 +1,12 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import type { Episode, Submission } from "@/lib/types";
 import Navbar from "@/components/Navbar";
-import EpisodeSetup from "@/components/show-runner/EpisodeSetup";
 import EpisodeHeader from "@/components/show-runner/EpisodeHeader";
 import ContestantQueue from "@/components/show-runner/ContestantQueue";
 import SegmentControl from "@/components/show-runner/SegmentControl";
@@ -16,22 +17,19 @@ import PreFlightCheck from "@/components/show-runner/PreFlightCheck";
 import QuickActions from "@/components/show-runner/QuickActions";
 import { useOverlaySocket } from "@/lib/useOverlaySocket";
 
-export default function ShowRunnerClient() {
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [activeEpisode, setActiveEpisode] = useState<Episode | null>(null);
+export default function StandbyClient() {
+  const [episode, setEpisode] = useState<Episode | null>(null);
   const [contestants, setContestants] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showSetup, setShowSetup] = useState(false);
-  const [editingEpisode, setEditingEpisode] = useState<Episode | null>(null);
+  const [activeContestantIndex, setActiveContestantIndex] = useState(0);
 
   // Live control state
   const [currentSegment, setCurrentSegment] = useState("COLD_OPEN");
   const [segmentHistory, setSegmentHistory] = useState<string[]>([]);
-  const [activeContestantIndex, setActiveContestantIndex] = useState(0);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
 
-  // Phase 3: Scoring & Audio state
+  // Scoring & Audio state
   const emptyMetrics: MetricScores = { lowEnd: 0, clarity: 0, balance: 0, dynamics: 0, image: 0 };
   const [hostMetrics, setHostMetrics] = useState<MetricScores>({ ...emptyMetrics });
   const [viewerMetrics, setViewerMetrics] = useState<MetricScores>({ ...emptyMetrics });
@@ -43,24 +41,20 @@ export default function ShowRunnerClient() {
   const [currentTrack, setCurrentTrack] = useState<{ title: string; artist: string; url: string } | null>(null);
   const [volume, setVolume] = useState(70);
 
-  // Phase 4: Operations state
+  // Operations state
   const [isOnBreak, setIsOnBreak] = useState(false);
   const [previousSegment, setPreviousSegment] = useState("COLD_OPEN");
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const router = useRouter();
   const supabase = createClient();
   const { connected, sendMessage, pushSegment, pushContestant, pushTrack, pushEpisode, pushEpisodeStatus, pushScoreUpdate, pushLockScore, pushPlayTrack, pushPauseTrack } = useOverlaySocket();
 
-  // Auth check
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/"); return; }
-      fetchEpisodes();
-    };
-    checkAuth();
-  }, []);
+  const isLive = episode?.status === "live";
+  const isReady = episode?.status === "ready";
+  const isSetup = episode?.status === "setup";
+  const controlsEnabled = isLive || isReady;
 
   // Timer interval
   useEffect(() => {
@@ -82,20 +76,19 @@ export default function ShowRunnerClient() {
     };
   }, [timerRunning]);
 
-  const fetchEpisodes = useCallback(async () => {
+  const fetchEpisode = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!session) { router.push("/"); return; }
+
       const res = await fetch("/api/episodes", {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (res.ok) {
         const data = await res.json();
-        setEpisodes(data);
-        // Find a live, ready, or setup episode first (not published/post_production)
         const active = data.find((e: Episode) => ["live", "ready", "setup"].includes(e.status));
         if (active) {
-          setActiveEpisode(active);
+          setEpisode(active);
           fetchContestants(active.id, session.access_token);
         }
       }
@@ -108,22 +101,13 @@ export default function ShowRunnerClient() {
       const res = await fetch(`/api/episodes/${episodeId}/contestants`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setContestants(data);
-      }
+      if (res.ok) setContestants(await res.json());
     } catch { /* silent */ }
   }, []);
 
-  const handleEpisodeCreated = (episode: Episode) => {
-    setEpisodes((prev) => [episode, ...prev]);
-    setActiveEpisode(episode);
-    setShowSetup(false);
-    // Fetch contestants for the new episode
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) fetchContestants(episode.id, session.access_token);
-    });
-  };
+  useEffect(() => {
+    fetchEpisode();
+  }, [fetchEpisode]);
 
   const handleSegmentChange = useCallback((segment: string) => {
     setCurrentSegment(segment);
@@ -132,21 +116,15 @@ export default function ShowRunnerClient() {
       return [...prev, segment];
     });
     pushSegment(segment);
-    // Reset timer on segment change
     setTimerSeconds(0);
     setTimerRunning(false);
   }, [pushSegment]);
 
-  // Audio ref for local playback
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
   const handleActivateContestant = useCallback((index: number) => {
     setActiveContestantIndex(index);
-    // Reset scores when contestant changes
     setHostMetrics({ ...emptyMetrics });
     setScoreLocked(false);
     setVotingClosed(false);
-    // Stop audio on contestant change
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = "";
@@ -164,7 +142,6 @@ export default function ShowRunnerClient() {
       if (c.track_title) {
         pushTrack({ title: c.track_title, artist: c.name });
       }
-      // Set current track with signed URL for audio playback
       if (c.track_signed_url) {
         setCurrentTrack({ title: c.track_title || "", artist: c.name, url: c.track_signed_url });
       }
@@ -178,20 +155,16 @@ export default function ShowRunnerClient() {
     setTimerSeconds(0);
   }, []);
 
-  // Phase 3: Lock score handler
   const handleLockScore = useCallback(() => {
     setScoreLocked(true);
     pushLockScore();
   }, [pushLockScore]);
 
-  // Phase 3: Close voting handler
   const handleCloseVoting = useCallback(() => {
     setVotingClosed(true);
-    // Send segment change to close voting on overlays
     pushSegment("VERDICT");
   }, [pushSegment]);
 
-  // Phase 3: Audio handlers
   const handlePlay = useCallback(() => {
     if (audioRef.current && currentTrack?.url) {
       audioRef.current.src = currentTrack.url;
@@ -222,12 +195,32 @@ export default function ShowRunnerClient() {
     }
   }, []);
 
-  // Phase 4: Computed helpers
+  const handleStatusChange = useCallback(async (newStatus: string) => {
+    if (!episode) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch(`/api/episodes/${episode.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setEpisode(updated);
+        pushEpisodeStatus(newStatus);
+      }
+    } catch { /* silent */ }
+  }, [episode, pushEpisodeStatus]);
+
+  // Phase 4: Quick action handlers
   const hasBackup = contestants.some((c) => c.pull_order === 4);
   const contestantsConfirmed = contestants.filter((c) => c.status === "selected" || c.status === "aired").length;
   const allTracksLoaded = contestants.length > 0 && contestants.every((c) => c.track_url);
 
-  // Phase 4: Quick action handlers
   const handleGoToBreak = useCallback(() => {
     if (isOnBreak) {
       setIsOnBreak(false);
@@ -275,11 +268,11 @@ export default function ShowRunnerClient() {
 
   const handleEndShow = useCallback(async () => {
     if (!window.confirm("End the show? This will stop the timer and close voting.")) return;
-    if (!activeEpisode) return;
+    if (!episode) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const res = await fetch(`/api/episodes/${activeEpisode.id}`, {
+      const res = await fetch(`/api/episodes/${episode.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -289,76 +282,12 @@ export default function ShowRunnerClient() {
       });
       if (res.ok) {
         const updated = await res.json();
-        setActiveEpisode(updated);
+        setEpisode(updated);
         setTimerRunning(false);
         pushEpisodeStatus("post_production");
       }
     } catch { /* silent */ }
-  }, [activeEpisode, pushEpisodeStatus]);
-
-  const isLive = activeEpisode?.status === "live";
-  const isReady = activeEpisode?.status === "ready";
-  const isSetup = activeEpisode?.status === "setup";
-  const controlsEnabled = isLive || isReady;
-
-  // Status transition handler
-  const handleStatusChange = useCallback(async (newStatus: string) => {
-    if (!activeEpisode) return;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const res = await fetch(`/api/episodes/${activeEpisode.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setActiveEpisode(updated);
-        setEpisodes((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
-        pushEpisodeStatus(newStatus);
-        // Auto-start timer when going live
-        if (newStatus === "live") {
-          setTimerSeconds(0);
-          setTimerRunning(true);
-        }
-      }
-    } catch { /* silent */ }
-  }, [activeEpisode, pushEpisodeStatus]);
-
-  // Next status based on current
-  const getNextStatus = (current: string): { label: string; status: string; color: string; desc: string } | null => {
-    switch (current) {
-      case "setup": return {
-        label: "Lock Lineup",
-        status: "ready",
-        color: "bg-[#D4A843] hover:bg-[#E89B2E] text-[#1A0F0A]",
-        desc: "Close submissions, lock the lineup."
-      };
-      case "ready": return {
-        label: "🔴 GO LIVE",
-        status: "live",
-        color: "bg-green-700 hover:bg-green-600 text-white animate-pulse",
-        desc: "Starts timer, opens broadcast. Viewers can see overlays."
-      };
-      case "live": return {
-        label: "End Show",
-        status: "post_production",
-        color: "bg-amber-700 hover:bg-amber-600 text-white",
-        desc: "Stops timer, closes voting."
-      };
-      case "post_production": return {
-        label: "Publish Episode",
-        status: "published",
-        color: "bg-purple-700 hover:bg-purple-600 text-white",
-        desc: "Finalizes scores, updates leaderboard."
-      };
-      default: return null;
-    }
-  };
+  }, [episode, pushEpisodeStatus]);
 
   return (
     <div className="flex flex-col min-h-screen relative">
@@ -367,32 +296,18 @@ export default function ShowRunnerClient() {
       <Navbar />
       <main className="flex-1 px-4 py-8">
         <div className="max-w-7xl mx-auto">
-          {/* Page Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl text-[#D4A843] uppercase tracking-[0.2em] font-bold gold-shimmer">
-                Show Runner
-              </h1>
-              <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-sm mt-2 uppercase tracking-wider">
-                Live episode control
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              {/* WS connection indicator */}
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full transition-all ${connected ? "bg-green-500 shadow-[0_0_6px_rgba(76,175,80,0.5)]" : "bg-red-500"}`} />
-                <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-wider" style={{ color: connected ? "rgba(76,175,80,0.6)" : "rgba(196,57,42,0.5)" }}>
-                  {connected ? "Overlays Live" : "Overlays Offline"}
-                </span>
-              </div>
 
-              <button
-                  onClick={() => { setEditingEpisode(null); setShowSetup(true); }}
-                  className="font-[family-name:var(--font-mono)] text-sm text-[#1A0F0A] bg-[#D4A843] hover:bg-[#E89B2E] transition-colors px-4 py-2 rounded font-semibold"
-                >
-                  + New Episode
-                </button>
-            </div>
+          {/* Standby Header */}
+          <div className="text-center mb-10">
+            <h1 className="font-[family-name:var(--font-display)] text-5xl text-[#D4A843] uppercase tracking-[0.25em] font-bold gold-shimmer mb-3">
+              Standby
+            </h1>
+            <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/40 text-sm uppercase tracking-[0.2em]">
+              STUDIO GOLD • Ep.{episode ? String(episode.episode_number).padStart(2, "0") : "—"}
+            </p>
+            <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/25 text-xs mt-2 uppercase tracking-wider">
+              Ready to broadcast
+            </p>
           </div>
 
           {/* Content */}
@@ -402,25 +317,20 @@ export default function ShowRunnerClient() {
                 Loading...
               </p>
             </div>
-          ) : showSetup ? (
-            <div className="mb-8">
-              <EpisodeSetup
-                initialEpisode={editingEpisode}
-                onEpisodeCreated={handleEpisodeCreated}
-                onEpisodeUpdated={(updated) => {
-                  setEpisodes((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
-                  if (activeEpisode?.id === updated.id) setActiveEpisode(updated);
-                  setShowSetup(false);
-                  setEditingEpisode(null);
-                }}
-                onCancel={() => { setShowSetup(false); setEditingEpisode(null); }}
-              />
+          ) : !episode ? (
+            <div className="card-float noise carbon-fiber-walnut rounded-xl p-6 relative overflow-hidden">
+              <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-sm text-center py-8">
+                No active episode found.{" "}
+                <button onClick={() => router.push("/show-runner")} className="text-[#D4A843] hover:underline">
+                  Go to Show Runner
+                </button>
+              </p>
             </div>
-          ) : activeEpisode && controlsEnabled ? (
+          ) : controlsEnabled ? (
             <>
               {/* Episode Header */}
               <EpisodeHeader
-                episode={activeEpisode}
+                episode={episode}
                 contestants={contestants}
                 isLive={isLive || isReady}
                 timerSeconds={timerSeconds}
@@ -433,7 +343,7 @@ export default function ShowRunnerClient() {
                 contestantsConfirmed={contestantsConfirmed}
                 contestantsTotal={contestants.length}
                 allTracksLoaded={allTracksLoaded}
-                episodeStatus={activeEpisode?.status || ""}
+                episodeStatus={episode.status}
               />
 
               {/* Two-column layout */}
@@ -498,141 +408,32 @@ export default function ShowRunnerClient() {
                 currentSegment={currentSegment}
               />
             </>
-          ) : activeEpisode ? (
-            /* Episode exists but not live — show simple status card */
-            <div className="card-float noise carbon-fiber-walnut rounded-xl p-6 relative overflow-hidden mb-8">
+          ) : (
+            /* Episode exists but not in controls-enabled state */
+            <div className="card-float noise carbon-fiber-walnut rounded-xl p-6 relative overflow-hidden">
               <EpisodeHeader
-                episode={activeEpisode}
+                episode={episode}
                 contestants={contestants}
                 isLive={false}
                 timerSeconds={0}
               />
               <div className="flex flex-col items-center gap-4 py-4">
                 <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-sm text-center">
-                  Episode is in <span className="text-[#D4A843]">{activeEpisode.status}</span> status.
+                  Episode is in <span className="text-[#D4A843]">{episode.status}</span> status.
                 </p>
                 <div className="flex items-center gap-3">
-                  {(() => {
-                    const next = getNextStatus(activeEpisode.status);
-                    if (next) {
-                      return (
-                        <button
-                          onClick={() => handleStatusChange(next.status)}
-                          className={`font-[family-name:var(--font-mono)] text-sm px-8 py-3 rounded font-semibold tracking-wider uppercase transition-colors ${next.color}`}
-                        >
-                          {next.label}
-                        </button>
-                      );
-                    }
-                    return null;
-                  })()}
-                  {activeEpisode.status === "ready" && (
+                  {episode.status === "setup" && (
                     <button
-                      onClick={() => handleStatusChange("setup")}
-                      className="font-[family-name:var(--font-mono)] text-xs text-[#F0E6D3]/40 hover:text-[#D4A843] border border-[#3A2818] hover:border-[#D4A843]/40 px-3 py-2 rounded transition-colors"
+                      onClick={() => handleStatusChange("ready")}
+                      className="font-[family-name:var(--font-mono)] text-sm bg-[#D4A843] hover:bg-[#E89B2E] text-[#1A0F0A] px-8 py-3 rounded font-semibold tracking-wider uppercase transition-colors"
                     >
-                      ← Revert to Setup
-                    </button>
-                  )}
-                  {isSetup && (
-                    <button
-                      onClick={() => router.push(`/episodes/${activeEpisode.id}`)}
-                      className="font-[family-name:var(--font-mono)] text-sm text-[#F0E6D3]/70 hover:text-[#D4A843] border border-[#3A2818] hover:border-[#D4A843]/40 px-4 py-3 rounded transition-colors"
-                    >
-                      📂 Open Episode
+                      Lock Lineup
                     </button>
                   )}
                 </div>
               </div>
             </div>
-          ) : (
-            /* No episode at all */
-            <div className="card-float noise carbon-fiber-walnut rounded-xl p-6 relative overflow-hidden mb-8">
-              <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-sm text-center py-8">
-                No active episode. Create one to get started.
-              </p>
-            </div>
           )}
-
-          {/* Episode list */}
-          <div className="card-float noise carbon-fiber-walnut rounded-xl p-6 relative overflow-hidden mt-8">
-            <h2 className="font-[family-name:var(--font-display)] text-lg text-[#F0E6D3]/60 uppercase tracking-[0.15em] font-bold mb-4">
-              All Episodes
-            </h2>
-            {episodes.length === 0 ? (
-              <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-sm text-center py-8">
-                No episodes yet. Create your first one above.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {episodes.map((ep) => (
-                  <div
-                    key={ep.id}
-                    className={`flex items-center justify-between px-4 py-3 rounded border transition-colors ${
-                      activeEpisode?.id === ep.id
-                        ? "border-[#D4A843]/40 bg-[#D4A843]/5"
-                        : "border-[#3A2818] bg-[#1A0F0A]/50 hover:border-[#D4A843]/20"
-                    }`}
-                  >
-                    <button
-                      onClick={() => {
-                        setActiveEpisode(ep);
-                        setShowSetup(false);
-                        supabase.auth.getSession().then(({ data: { session } }) => {
-                          if (session) fetchContestants(ep.id, session.access_token);
-                        });
-                      }}
-                      className="flex-1 flex items-center gap-4 text-left"
-                    >
-                      <span className="font-[family-name:var(--font-mono)] text-[#D4A843]/60 text-xs w-12">
-                        Ep.{String(ep.episode_number).padStart(2, "0")}
-                      </span>
-                      <div>
-                        <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3] text-sm">
-                          {ep.title || "Untitled Episode"}
-                        </p>
-                        {ep.air_date && (
-                          <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-xs">
-                            {new Date(ep.air_date).toLocaleDateString()}
-                          </p>
-                        )}
-                      </div>
-                    </button>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`font-[family-name:var(--font-mono)] text-xs px-3 py-1 rounded uppercase tracking-wider ${
-                          ep.status === "live"
-                            ? "text-green-400 border border-green-800"
-                            : ep.status === "ready"
-                            ? "text-[#D4A843] border border-[#D4A843]/40"
-                            : ep.status === "setup"
-                            ? "text-blue-400 border border-blue-800"
-                            : ep.status === "published"
-                            ? "text-purple-400 border border-purple-800"
-                            : ep.status === "post_production"
-                            ? "text-amber-400 border border-amber-800"
-                            : "text-[#F0E6D3]/40 border border-[#3A2818]"
-                        }`}
-                      >
-                        {ep.status}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingEpisode(ep);
-                          setShowSetup(true);
-                        }}
-                        className="font-[family-name:var(--font-mono)] text-xs text-[#F0E6D3]/40 hover:text-[#D4A843] transition-colors px-2 py-1 rounded border border-transparent hover:border-[#D4A843]/20"
-                        title="Edit episode"
-                      >
-                        ✏️
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </main>
     </div>

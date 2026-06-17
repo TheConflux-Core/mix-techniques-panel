@@ -307,7 +307,7 @@ export default function EpisodeDetailClient() {
           </div>
 
           {/* Status Transition */}
-          {nextStatus && (
+          {nextStatus ? (
             <div className="card-float noise carbon-fiber-walnut rounded-xl p-6 relative overflow-hidden mb-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -315,19 +315,41 @@ export default function EpisodeDetailClient() {
                     Next step: <span className="text-[#D4A843]">{nextStatus.desc}</span>
                   </p>
                 </div>
-                <button
-                  onClick={() => handleStatusChange(nextStatus.status)}
-                  className={`font-[family-name:var(--font-mono)] text-sm px-6 py-3 rounded font-semibold tracking-wider uppercase transition-colors ${
-                    nextStatus.status === "live"
-                      ? "bg-green-700 hover:bg-green-600 text-white animate-pulse"
-                      : nextStatus.status === "published"
-                      ? "bg-purple-700 hover:bg-purple-600 text-white"
-                      : "bg-[#D4A843] hover:bg-[#E89B2E] text-[#1A0F0A]"
-                  }`}
-                >
-                  {nextStatus.label}
-                </button>
+                <div className="flex items-center gap-3">
+                  {episode.status === "ready" && (
+                    <button
+                      onClick={() => handleStatusChange("setup")}
+                      className="font-[family-name:var(--font-mono)] text-xs text-[#F0E6D3]/40 hover:text-[#D4A843] border border-[#3A2818] hover:border-[#D4A843]/40 px-3 py-2 rounded transition-colors"
+                    >
+                      ← Revert to Setup
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleStatusChange(nextStatus.status)}
+                    className={`font-[family-name:var(--font-mono)] text-sm px-6 py-3 rounded font-semibold tracking-wider uppercase transition-colors ${
+                      nextStatus.status === "live"
+                        ? "bg-green-700 hover:bg-green-600 text-white animate-pulse"
+                        : nextStatus.status === "published"
+                        ? "bg-purple-700 hover:bg-purple-600 text-white"
+                        : "bg-[#D4A843] hover:bg-[#E89B2E] text-[#1A0F0A]"
+                    }`}
+                  >
+                    {nextStatus.label}
+                  </button>
+                </div>
               </div>
+            </div>
+          ) : (
+            <div className="card-float noise carbon-fiber-walnut rounded-xl p-6 relative overflow-hidden mb-6">
+              <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-sm text-center">
+                This episode is finalized.{' '}
+                <button
+                  onClick={() => router.push("/show-runner")}
+                  className="text-[#D4A843] hover:underline"
+                >
+                  ← Back to Show Runner
+                </button>
+              </p>
             </div>
           )}
 
