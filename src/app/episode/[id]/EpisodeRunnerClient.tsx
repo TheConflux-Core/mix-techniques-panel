@@ -347,8 +347,8 @@ export default function EpisodeRunnerClient() {
 
   return (
     <div className="flex flex-col min-h-screen relative">
-      <div className="fixed inset-0 carbon-fiber pointer-events-none" />
-      <div className="fixed inset-0 warm-light-bg pointer-events-none opacity-50" />
+      <div className="fixed inset-0 carbon-fiber pointer-events-none -z-10" />
+      <div className="fixed inset-0 warm-light-bg pointer-events-none opacity-50 -z-10" />
       <Navbar />
       <main className="flex-1 px-4 py-6">
         <div className="max-w-7xl mx-auto">

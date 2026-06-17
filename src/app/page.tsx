@@ -51,8 +51,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative">
-      <div className="fixed inset-0 carbon-fiber pointer-events-none" />
-      <div className="fixed inset-0 warm-light-bg pointer-events-none opacity-50" />
+      <div className="fixed inset-0 carbon-fiber pointer-events-none -z-10" />
+      <div className="fixed inset-0 warm-light-bg pointer-events-none opacity-50 -z-10" />
       <div className="w-full max-w-md">
         <div className="text-center mb-10">
           <h1 className="font-[family-name:var(--font-display)] text-3xl uppercase tracking-[0.15em] font-bold mb-3 gold-shimmer">
