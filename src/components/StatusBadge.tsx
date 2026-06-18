@@ -9,6 +9,7 @@ interface StatusBadgeProps {
 const STATUS_GLOW: Record<string, string> = {
   submitted: "shadow-[0_0_8px_rgba(212,168,67,0.2)]",
   under_review: "shadow-[0_0_8px_rgba(232,155,46,0.25)]",
+  pulled: "shadow-[0_0_10px_rgba(232,155,46,0.3)]",
   selected: "shadow-[0_0_10px_rgba(212,168,67,0.3)]",
   aired: "shadow-[0_0_8px_rgba(21,128,61,0.25)]",
   scored: "shadow-[0_0_8px_rgba(147,51,234,0.25)]",

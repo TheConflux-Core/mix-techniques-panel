@@ -13,10 +13,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: pool, error: fetchError } = await supabase
+    const { searchParams } = new URL(request.url);
+    const episodeId = searchParams.get("episode_id");
+
+    let query = supabase
       .from("submissions")
       .select("*")
       .eq("status", "submitted");
+
+    if (episodeId) {
+      query = query.eq("episode_id", episodeId);
+    }
+
+    const { data: pool, error: fetchError } = await query;
 
     if (fetchError) {
       console.error("Pull fetch error:", fetchError);
@@ -81,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("submissions")
-      .update({ status: "selected", updated_at: new Date().toISOString() })
+      .update({ status: "pulled", updated_at: new Date().toISOString() })
       .eq("id", submission_id)
       .select()
       .single();

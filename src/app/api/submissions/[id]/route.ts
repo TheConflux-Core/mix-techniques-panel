@@ -74,7 +74,7 @@ export async function PATCH(
       );
     }
 
-    const validStatuses = ["submitted", "under_review", "selected", "aired", "scored"];
+    const validStatuses = ["submitted", "pulled", "under_review", "selected", "aired", "scored"];
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
         { error: "Invalid status" },

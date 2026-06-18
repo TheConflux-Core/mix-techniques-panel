@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from("submissions")
       .update({ status: "submitted", updated_at: new Date().toISOString() })
-      .eq("status", "selected")
+      .in("status", ["selected", "pulled"])
       .select();
 
     if (error) {

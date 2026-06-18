@@ -71,7 +71,7 @@ export default function EpisodeRunnerClient() {
   const controlsEnabled = isLive || isReady;
 
   const hasBackup = contestants.some((c) => c.pull_order === 4);
-  const contestantsConfirmed = contestants.filter((c) => c.status === "selected" || c.status === "aired").length;
+  const contestantsConfirmed = contestants.filter((c) => c.status === "pulled" || c.status === "aired").length;
   const allTracksLoaded = contestants.length > 0 && contestants.every((c) => c.track_url);
 
   const assignable = availableSubmissions.filter(
@@ -129,7 +129,7 @@ export default function EpisodeRunnerClient() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const res = await fetch(`/api/submissions?status=submitted&episode_id=${episodeId}`, {
+      const res = await fetch(`/api/submissions?episode_id=${episodeId}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (res.ok) setAvailableSubmissions(await res.json());
@@ -249,7 +249,7 @@ export default function EpisodeRunnerClient() {
       if (!session) return;
 
       // 1. Random selection from pool
-      const pullRes = await fetch("/api/submissions/pull", {
+      const pullRes = await fetch(`/api/submissions/pull?episode_id=${episodeId}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (!pullRes.ok) { const body = await pullRes.json(); throw new Error(body.error || "Failed to pull"); }

@@ -47,7 +47,7 @@ export interface Submission {
   file_format: string | null;
   waveform_data: number[] | null;
   pull_order: number | null;
-  status: "submitted" | "under_review" | "selected" | "aired" | "scored";
+  status: "submitted" | "pulled" | "under_review" | "selected" | "aired" | "scored";
   episode_id: string | null;
   episodes?: { episode_number: number; title: string | null } | null;
   season_id: number | null;
@@ -77,6 +77,7 @@ export const GENRE_OPTIONS = [
 export const STATUS_OPTIONS = [
   { value: "submitted", label: "Submitted" },
   { value: "under_review", label: "Under Review" },
+  { value: "pulled", label: "Pulled" },
   { value: "selected", label: "Selected" },
   { value: "aired", label: "Aired" },
   { value: "scored", label: "Scored" },
@@ -85,6 +86,7 @@ export const STATUS_OPTIONS = [
 export const STATUS_COLORS: Record<string, string> = {
   submitted: "border-[#D4A843] text-[#D4A843]",
   under_review: "bg-[#E89B2E] text-[#1A0F0A]",
+  pulled: "bg-[#E89B2E] text-[#1A0F0A]",
   selected: "bg-[#D4A843] text-[#1A0F0A]",
   aired: "bg-green-700 text-white",
   scored: "bg-purple-700 text-white",

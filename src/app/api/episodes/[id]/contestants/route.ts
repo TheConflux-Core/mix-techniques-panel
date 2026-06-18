@@ -13,6 +13,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .from("submissions")
       .select("*")
       .eq("episode_id", id)
+      .eq("status", "pulled")
       .order("pull_order", { ascending: true });
 
     if (error) {
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const updateData: Record<string, any> = {
       episode_id: id,
-      status: "selected",
+      status: "pulled",
       updated_at: new Date().toISOString(),
     };
     if (pull_order !== undefined) updateData.pull_order = pull_order;

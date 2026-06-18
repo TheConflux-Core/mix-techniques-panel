@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
       query = query.eq("status", status);
     }
     if (episodeId) {
-      // Only show unassigned submissions (available pool for this episode)
-      query = query.is("episode_id", null);
+      // Show all submissions for this episode
+      query = query.eq("episode_id", episodeId);
     }
 
     const { data, error } = await query;
