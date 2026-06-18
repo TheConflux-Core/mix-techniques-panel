@@ -636,49 +636,45 @@ export default function EpisodeRunnerClient() {
               </div>
 
               {/* ═══════════════════════════════════════════════
-                  CONTESTANT LIST (always visible)
+                  ALL SUBMISSIONS (scrollable)
                   ═══════════════════════════════════════════════ */}
               <div className="card-float noise carbon-fiber-walnut rounded-xl p-6 relative overflow-hidden mb-6">
                 <h2 className="font-[family-name:var(--font-display)] text-lg text-[#D4A843] uppercase tracking-[0.15em] font-bold mb-4">
-                  Contestant Queue
+                  Submissions
+                  <span className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-xs ml-2 normal-case tracking-normal">
+                    {availableSubmissions.length} total · {assignable.length} available
+                  </span>
                 </h2>
-                {contestants.length === 0 ? (
+                {availableSubmissions.length === 0 ? (
                   <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-sm text-center py-8">
-                    No contestants assigned yet.
+                    No submissions yet.
                   </p>
                 ) : (
-                  <div className="space-y-2">
-                    {contestants.map((c, i) => (
-                      <div
-                        key={c.id}
-                        className={`flex items-center gap-4 px-4 py-3 rounded border transition-colors ${
-                          activeContestantIndex === i && controlsEnabled
-                            ? "border-[#D4A843]/40 bg-[#D4A843]/5"
-                            : "border-[#3A2818] bg-[#1A0F0A]/50"
-                        }`}
-                      >
-                        <span className="font-[family-name:var(--font-mono)] text-[#D4A843]/60 text-xs w-6">
-                          {String(c.pull_order ?? i + 1).padStart(2, "0")}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3] text-sm font-medium truncate">
-                            {c.name}
-                          </p>
-                          <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/40 text-xs truncate">
-                            {c.track_title || "Untitled"} · {getGenreLabel(c.genre)}
-                          </p>
-                        </div>
-                        <StatusBadge status={c.status} />
-                        <button
-                          onClick={() => handleRemove(c.id)}
-                          disabled={removing === c.id}
-                          className="font-[family-name:var(--font-mono)] text-xs text-red-400/60 hover:text-red-400 px-2 py-1 transition-colors disabled:opacity-30"
-                          title="Remove from episode"
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {availableSubmissions.map((s) => {
+                      const isAssigned = contestants.some((c) => c.id === s.id);
+                      return (
+                        <div
+                          key={s.id}
+                          className={`flex items-center gap-4 px-4 py-3 rounded border transition-colors ${
+                            isAssigned
+                              ? "border-[#D4A843]/20 bg-[#D4A843]/5"
+                              : "border-[#3A2818] bg-[#1A0F0A]/50"
+                          }`}
                         >
-                          {removing === c.id ? "..." : "✕"}
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3] text-sm font-medium truncate">
+                              {s.name}
+                              {isAssigned && <span className="text-[#D4A843]/60 text-xs ml-2">✓ queued</span>}
+                            </p>
+                            <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/40 text-xs truncate">
+                              {s.track_title || "Untitled"} · {getGenreLabel(s.genre)}
+                            </p>
+                          </div>
+                          <StatusBadge status={s.status} />
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
