@@ -83,7 +83,7 @@ export default function EpisodeRunnerClient() {
     switch (current) {
       case "setup": return { label: "✅ Mark Ready", status: "ready", desc: "Lock lineup, close submissions." };
       case "ready": return { label: "🔴 GO LIVE", status: "live", desc: "Start broadcast." };
-      case "live": return { label: "End Show", status: "post_production", desc: "Stop broadcast." };
+      // "live" has no next-status button — timer controls replace it, End Show is in QuickActions
       case "post_production": return { label: "Publish", status: "published", desc: "Finalize scores, update leaderboard." };
       default: return null;
     }
@@ -278,8 +278,15 @@ export default function EpisodeRunnerClient() {
           setTimerSeconds(0);
           setTimerRunning(true);
         }
+      } else {
+        const errBody = await res.text();
+        console.error(`[GO LIVE] PATCH failed ${res.status}:`, errBody);
+        setError(`Status change failed (${res.status}): ${errBody}`);
       }
-    } catch { /* silent */ }
+    } catch (err) {
+      console.error("[GO LIVE] fetch error:", err);
+      setError(`Status change error: ${err}`);
+    }
   }, [episode, pushEpisodeStatus]);
 
   // ─── Segment / Contestant / Timer handlers ────────────────
@@ -481,7 +488,27 @@ export default function EpisodeRunnerClient() {
                         ← Back to Setup
                       </button>
                     )}
-                    {nextStatus && (
+                    {isLive && (
+                      <>
+                        <button
+                          onClick={timerRunning ? handleTimerStop : handleTimerStart}
+                          className={`font-[family-name:var(--font-mono)] text-sm px-5 py-2.5 rounded font-semibold tracking-wider uppercase transition-colors ${
+                            timerRunning
+                              ? "bg-amber-700 hover:bg-amber-600 text-white"
+                              : "bg-green-700 hover:bg-green-600 text-white"
+                          }`}
+                        >
+                          {timerRunning ? "⏸ Pause" : "▶ Resume"}
+                        </button>
+                        <button
+                          onClick={handleTimerReset}
+                          className="font-[family-name:var(--font-mono)] text-sm px-5 py-2.5 rounded font-semibold tracking-wider uppercase bg-[#3A2818] hover:bg-[#4A3828] text-[#F0E6D3]/70 hover:text-[#F0E6D3] transition-colors"
+                        >
+                          ↺ Reset
+                        </button>
+                      </>
+                    )}
+                    {nextStatus && !isLive && (
                       <button
                         onClick={() => handleStatusChange(nextStatus.status)}
                         className={`font-[family-name:var(--font-mono)] text-sm px-6 py-2.5 rounded font-semibold tracking-wider uppercase transition-colors ${
@@ -495,7 +522,7 @@ export default function EpisodeRunnerClient() {
                         {nextStatus.label}
                       </button>
                     )}
-                    {!nextStatus && (
+                    {!nextStatus && !isLive && (
                       <span className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-xs">
                         Episode finalized
                       </span>
