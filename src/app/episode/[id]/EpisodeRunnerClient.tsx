@@ -129,7 +129,7 @@ export default function EpisodeRunnerClient() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const res = await fetch("/api/submissions?status=submitted", {
+      const res = await fetch(`/api/submissions?status=submitted&episode_id=${episodeId}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (res.ok) setAvailableSubmissions(await res.json());

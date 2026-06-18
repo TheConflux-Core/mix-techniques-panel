@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const genre = searchParams.get("genre");
     const status = searchParams.get("status");
+    const episodeId = searchParams.get("episode_id");
 
     let query = supabase
       .from("submissions")
@@ -27,6 +28,10 @@ export async function GET(request: NextRequest) {
     }
     if (status && status !== "all") {
       query = query.eq("status", status);
+    }
+    if (episodeId) {
+      // Only show unassigned submissions (available pool for this episode)
+      query = query.is("episode_id", null);
     }
 
     const { data, error } = await query;
