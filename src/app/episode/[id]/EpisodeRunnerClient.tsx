@@ -38,6 +38,8 @@ export default function EpisodeRunnerClient() {
   const [removing, setRemoving] = useState<string | null>(null);
   const [selectedSubmissionId, setSelectedSubmissionId] = useState("");
   const [showAssignPanel, setShowAssignPanel] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [lastPulled, setLastPulled] = useState<Submission | null>(null);
 
   // Live control state
   const [currentSegment, setCurrentSegment] = useState("COLD_OPEN");
@@ -62,7 +64,7 @@ export default function EpisodeRunnerClient() {
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const { connected, sendMessage, pushSegment, pushContestant, pushTrack, pushEpisodeStatus, pushLockScore, pushPlayTrack, pushPauseTrack } = useOverlaySocket();
+  const { connected, sendMessage, pushSegment, pushContestant, pushTrack, pushEpisodeStatus, pushLockScore, pushPlayTrack, pushPauseTrack, pushPullStart, pushPullAnnounce } = useOverlaySocket();
 
   const isLive = episode?.status === "live";
   const isReady = episode?.status === "ready";
@@ -237,6 +239,63 @@ export default function EpisodeRunnerClient() {
     } finally {
       setAssigning(null);
     }
+  };
+
+  const handlePull = async () => {
+    setPulling(true);
+    setError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // 1. Random selection from pool
+      const pullRes = await fetch("/api/submissions/pull", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!pullRes.ok) { const body = await pullRes.json(); throw new Error(body.error || "Failed to pull"); }
+      const { submission, pool_size } = await pullRes.json();
+
+      // 2. Trigger overlay animation (name hidden)
+      pushPullStart(pool_size);
+
+      // 3. Assign to this episode
+      const nextOrder = contestants.length > 0
+        ? Math.max(...contestants.map((c) => c.pull_order || 0)) + 1
+        : 1;
+      const assignRes = await fetch(`/api/episodes/${episodeId}/contestants`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ submission_id: submission.id, pull_order: nextOrder }),
+      });
+      if (!assignRes.ok) throw new Error("Failed to assign pulled submission");
+
+      setLastPulled(submission);
+      await Promise.all([fetchContestants(episodeId, session.access_token), fetchAvailable()]);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPulling(false);
+    }
+  };
+
+  const handleAnnounce = async () => {
+    if (!lastPulled) return;
+    pushPullAnnounce({
+      name: lastPulled.name,
+      city: lastPulled.location || "",
+      genre: lastPulled.genre || "",
+      trackTitle: lastPulled.track_title || "",
+    });
+    pushContestant({
+      name: lastPulled.name,
+      city: lastPulled.location || "",
+      genre: lastPulled.genre || "",
+      handle: lastPulled.social_links?.instagram || "",
+    });
+    if (lastPulled.track_title) {
+      pushTrack({ title: lastPulled.track_title, artist: lastPulled.name });
+    }
+    setLastPulled(null);
   };
 
   const handleRemove = async (submissionId: string) => {
@@ -476,6 +535,21 @@ export default function EpisodeRunnerClient() {
                     >
                       {showAssignPanel ? "Hide Assign" : "+ Assign"}
                     </button>
+                    <button
+                      onClick={handlePull}
+                      disabled={pulling || !controlsEnabled}
+                      className="font-[family-name:var(--font-mono)] text-xs text-[#D4A843] hover:text-[#E89B2E] border border-[#D4A843]/30 hover:border-[#D4A843]/60 px-3 py-2 rounded transition-colors disabled:opacity-30"
+                    >
+                      {pulling ? "Drawing..." : "🎲 Pull"}
+                    </button>
+                    {lastPulled && (
+                      <button
+                        onClick={handleAnnounce}
+                        className="font-[family-name:var(--font-mono)] text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-500/60 px-3 py-2 rounded transition-colors animate-pulse"
+                      >
+                        📢 Announce
+                      </button>
+                    )}
                   </div>
 
                   {/* Right: status transition */}

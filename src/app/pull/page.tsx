@@ -2,163 +2,165 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
-import type { Submission } from "@/lib/types";
-import Navbar from "@/components/Navbar";
-import PullReveal from "@/components/PullReveal";
-import PulledList from "@/components/PulledList";
-import { useOverlaySocket } from "@/lib/useOverlaySocket";
+import { useEffect, useState, useRef } from "react";
 
-export default function PullPage() {
-  const [phase, setPhase] = useState<"idle" | "pulling" | "revealed">("idle");
-  const [currentSubmission, setCurrentSubmission] = useState<Submission | null>(null);
-  const [pulled, setPulled] = useState<Submission[]>([]);
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "wss://ws.mixtechniques.com";
+
+type Phase = "idle" | "pulling" | "revealed";
+
+export default function PullOverlay() {
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [genre, setGenre] = useState("");
+  const [trackTitle, setTrackTitle] = useState("");
   const [poolSize, setPoolSize] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resetting, setResetting] = useState(false);
-  const router = useRouter();
-  const supabase = createClient();
-  const { connected, pushContestant, pushTrack, pushSegment } = useOverlaySocket();
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/"); return; }
-      fetchPoolSize();
+    const connect = () => {
+      if (wsRef.current) return;
+      let ws: WebSocket;
+      try { ws = new WebSocket(WS_URL); } catch { scheduleReconnect(); return; }
+
+      ws.onopen = () => {
+        if (reconnectRef.current) { clearTimeout(reconnectRef.current); reconnectRef.current = null; }
+      };
+      ws.onclose = () => { wsRef.current = null; scheduleReconnect(); };
+      ws.onerror = () => { ws.close(); };
+      ws.onmessage = (ev) => {
+        let msg;
+        try { msg = JSON.parse(ev.data); } catch { return; }
+
+        if (msg.type === "pull-start") {
+          setPoolSize(msg.data?.poolSize || 0);
+          setPhase("pulling");
+          // Auto-reveal after suspense delay
+          setTimeout(() => {
+            setPhase((prev) => prev === "pulling" ? prev : prev); // no-op, just ensuring state
+          }, 2500);
+        }
+
+        if (msg.type === "pull-announce") {
+          setName(msg.data?.name || "");
+          setCity(msg.data?.city || "");
+          setGenre(msg.data?.genre || "");
+          setTrackTitle(msg.data?.trackTitle || "");
+          setPhase("revealed");
+          // Auto-hide after 15 seconds
+          setTimeout(() => {
+            setPhase("idle");
+            setName("");
+          }, 15000);
+        }
+
+        // Reset on next-contestant or segment change
+        if (msg.type === "next-contestant" || msg.type === "reset-episode") {
+          setPhase("idle");
+          setName("");
+        }
+      };
+
+      wsRef.current = ws;
     };
-    checkAuth();
+
+    const scheduleReconnect = () => {
+      if (reconnectRef.current) return;
+      reconnectRef.current = setTimeout(() => { reconnectRef.current = null; connect(); }, 3000);
+    };
+
+    connect();
+    return () => {
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+      if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+    };
   }, []);
 
-  const fetchPoolSize = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const res = await fetch("/api/submissions?status=submitted", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (res.ok) { const data = await res.json(); setPoolSize(data.length); }
-    } catch { /* silent */ }
-  };
-
-  const handlePull = useCallback(async () => {
-    setLoading(true); setError(null); setPhase("pulling");
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/"); return; }
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      const res = await fetch("/api/submissions/pull", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (!res.ok) { const body = await res.json(); throw new Error(body.error || "Failed to pull"); }
-      const data = await res.json();
-      setCurrentSubmission(data.submission); setPoolSize(data.pool_size); setPhase("revealed");
-    } catch (err: any) { setError(err.message); setPhase("idle"); }
-    finally { setLoading(false); }
-  }, [router, supabase]);
-
-  const handleConfirm = useCallback(async () => {
-    if (!currentSubmission) return;
-    setLoading(true); setError(null);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/"); return; }
-      const res = await fetch("/api/submissions/pull", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ submission_id: currentSubmission.id }),
-      });
-      if (!res.ok) { const body = await res.json(); throw new Error(body.error || "Failed to confirm pull"); }
-      const confirmed = await res.json();
-      setPulled((prev) => [confirmed, ...prev]); setCurrentSubmission(null); setPhase("idle");
-
-      // Push contestant data to WS server for overlays
-      pushContestant({
-        name: confirmed.name,
-        city: confirmed.location || "",
-        genre: confirmed.genre || "",
-        handle: confirmed.social_links?.instagram || "",
-      });
-      if (confirmed.track_title) {
-        pushTrack({ title: confirmed.track_title, artist: confirmed.name });
-      }
-      pushSegment("THE_PULL");
-
-      await fetchPoolSize();
-    } catch (err: any) { setError(err.message); }
-    finally { setLoading(false); }
-  }, [currentSubmission, router, supabase]);
-
-  const handleResetPool = async () => {
-    if (!confirm("Reset the pool? All 'selected' submissions will return to 'submitted' status.")) return;
-    setResetting(true); setError(null);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/"); return; }
-      const res = await fetch("/api/submissions/reset-pool", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      });
-      if (!res.ok) { const body = await res.json(); throw new Error(body.error || "Failed to reset pool"); }
-      const data = await res.json();
-      setPulled([]); setCurrentSubmission(null); setPhase("idle");
-      await fetchPoolSize();
-      alert(`Pool reset complete. ${data.reset_count} submissions returned.`);
-    } catch (err: any) { setError(err.message); }
-    finally { setResetting(false); }
-  };
-
   return (
-    <div className="flex flex-col min-h-screen relative">
-      <div className="fixed inset-0 carbon-fiber pointer-events-none -z-10" />
-      <div className="fixed inset-0 warm-light-bg pointer-events-none opacity-50 -z-10" />
-      <Navbar />
-      <main className="flex-1 px-4 py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-12">
-            <div>
-              <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl text-[#D4A843] uppercase tracking-[0.2em] font-bold gold-shimmer">
-                The Pull
-              </h1>
-              <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/30 text-sm mt-2 uppercase tracking-wider">
-                Who&apos;s next?
-              </p>
+    <div className="fixed inset-0 z-[999] pointer-events-none" style={{ background: "transparent" }}>
+      {/* Pulling phase — suspense animation */}
+      {phase === "pulling" && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative">
+            {/* Outer ring */}
+            <div
+              className="w-40 h-40 rounded-full border-4 border-transparent border-t-[#D4A843] border-r-[#D4A843]/50"
+              style={{ animation: "spin 0.6s linear infinite" }}
+            />
+            {/* Inner ring */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="w-24 h-24 rounded-full border-4 border-transparent border-b-[#E89B2E] border-l-[#E89B2E]/50"
+                style={{ animation: "spin 0.4s linear infinite reverse" }}
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full transition-all ${connected ? "bg-green-500 shadow-[0_0_6px_rgba(76,175,80,0.5)]" : "bg-red-500"}`} />
-              <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-wider" style={{ color: connected ? "rgba(76,175,80,0.6)" : "rgba(196,57,42,0.5)" }}>
-                {connected ? "Overlays Live" : "Overlays Offline"}
+            {/* Pool count */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="font-[family-name:var(--font-display)] text-[#D4A843] text-2xl font-bold tabular-nums">
+                {poolSize}
               </span>
             </div>
-            <button
-              onClick={handleResetPool}
-              disabled={resetting}
-              className="font-[family-name:var(--font-mono)] text-xs text-[#F0E6D3]/40 hover:text-red-400 transition-all border border-[#3A2818] hover:border-red-400/30 hover:shadow-[0_0_15px_rgba(239,68,68,0.1)] px-4 py-2 rounded disabled:opacity-30"
-            >
-              {resetting ? "Resetting..." : "Reset Pool"}
-            </button>
           </div>
-
-          {error && (
-            <div className="bg-red-900/30 border border-red-800 text-red-300 px-4 py-3 rounded font-[family-name:var(--font-mono)] text-sm mb-6 max-w-2xl mx-auto error-shake">
-              {error}
-            </div>
-          )}
-
-          <PullReveal
-            submission={currentSubmission}
-            phase={phase}
-            onPull={handlePull}
-            onConfirm={handleConfirm}
-            poolSize={poolSize}
-            loading={loading}
-          />
-
-          <PulledList pulled={pulled} />
+          {/* DRAWING text */}
+          <p
+            className="absolute mt-52 font-[family-name:var(--font-display)] text-[#D4A843] text-2xl uppercase tracking-[0.3em] animate-pulse"
+          >
+            Drawing...
+          </p>
         </div>
-      </main>
+      )}
+
+      {/* Revealed phase — name entrance */}
+      {phase === "revealed" && name && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center" style={{ animation: "nameReveal 0.8s ease-out forwards" }}>
+            <p className="font-[family-name:var(--font-mono)] text-[#D4A843]/60 text-xs uppercase tracking-[0.3em] mb-3">
+              Next up
+            </p>
+            <h2
+              className="font-[family-name:var(--font-display)] text-5xl md:text-7xl text-[#F0E6D3] font-bold uppercase tracking-wide"
+              style={{
+                textShadow: "0 0 40px rgba(212,168,67,0.5), 0 0 80px rgba(212,168,67,0.2)",
+                animation: "goldGlow 2s ease-in-out infinite alternate",
+              }}
+            >
+              {name}
+            </h2>
+            {city && (
+              <p className="font-[family-name:var(--font-mono)] text-[#F0E6D3]/50 text-sm mt-3">
+                📍 {city}
+              </p>
+            )}
+            {genre && (
+              <p className="font-[family-name:var(--font-mono)] text-[#D4A843]/70 text-xs uppercase tracking-wider mt-1">
+                {genre}
+              </p>
+            )}
+            {trackTitle && (
+              <p className="font-[family-name:var(--font-display)] text-[#F0E6D3]/80 text-lg mt-4 italic">
+                &ldquo;{trackTitle}&rdquo;
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Idle — nothing rendered (transparent) */}
+
+      <style jsx global>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes nameReveal {
+          0% { opacity: 0; transform: scale(0.8) translateY(20px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes goldGlow {
+          0% { text-shadow: 0 0 20px rgba(212,168,67,0.3), 0 0 40px rgba(212,168,67,0.1); }
+          100% { text-shadow: 0 0 40px rgba(212,168,67,0.6), 0 0 80px rgba(212,168,67,0.3); }
+        }
+      `}</style>
     </div>
   );
 }

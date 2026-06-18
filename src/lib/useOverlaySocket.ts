@@ -168,6 +168,27 @@ export function useOverlaySocket() {
     [sendMessage]
   );
 
+  /** Trigger pull animation on overlay (name hidden) */
+  const pushPullStart = useCallback(
+    (poolSize: number) => {
+      return sendMessage("pull-start", { poolSize });
+    },
+    [sendMessage]
+  );
+
+  /** Announce pulled contestant on overlay (name revealed) */
+  const pushPullAnnounce = useCallback(
+    (contestant: { name: string; city?: string; genre?: string; trackTitle?: string }) => {
+      return sendMessage("pull-announce", {
+        name: contestant.name,
+        city: contestant.city || "",
+        genre: contestant.genre || "",
+        trackTitle: contestant.trackTitle || "",
+      });
+    },
+    [sendMessage]
+  );
+
   return {
     connected,
     sendMessage,
@@ -182,5 +203,7 @@ export function useOverlaySocket() {
     pushPlayTrack,
     pushPauseTrack,
     pushSeekTrack,
+    pushPullStart,
+    pushPullAnnounce,
   };
 }
