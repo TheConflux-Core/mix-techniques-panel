@@ -48,8 +48,9 @@ export default function EpisodeRunnerClient() {
   const [timerRunning, setTimerRunning] = useState(false);
 
   // Scoring & Audio state
+  const defaultMetrics: MetricScores = { lowEnd: 5, clarity: 5, balance: 5, dynamics: 5, image: 5 };
   const emptyMetrics: MetricScores = { lowEnd: 0, clarity: 0, balance: 0, dynamics: 0, image: 0 };
-  const [hostMetrics, setHostMetrics] = useState<MetricScores>({ ...emptyMetrics });
+  const [hostMetrics, setHostMetrics] = useState<MetricScores>({ ...defaultMetrics });
   const [viewerMetrics, setViewerMetrics] = useState<MetricScores>({ ...emptyMetrics });
   const [viewerVotes, setViewerVotes] = useState(0);
   const [scoreLocked, setScoreLocked] = useState(false);
@@ -96,18 +97,18 @@ export default function EpisodeRunnerClient() {
       if (d.votes !== undefined) setViewerVotes(d.votes);
     }
     if (msg.type === "reset-scores") {
-      setHostMetrics({ ...emptyMetrics });
+      setHostMetrics({ ...defaultMetrics });
       setScoreLocked(false);
     }
     if (msg.type === "next-contestant") {
-      setHostMetrics({ ...emptyMetrics });
+      setHostMetrics({ ...defaultMetrics });
       setViewerMetrics({ ...emptyMetrics });
       setViewerVotes(0);
       setScoreLocked(false);
       setVotingClosed(false);
     }
     if (msg.type === "reset-episode") {
-      setHostMetrics({ ...emptyMetrics });
+      setHostMetrics({ ...defaultMetrics });
       setViewerMetrics({ ...emptyMetrics });
       setViewerVotes(0);
       setScoreLocked(false);
