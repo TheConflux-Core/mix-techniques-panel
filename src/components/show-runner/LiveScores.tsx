@@ -39,7 +39,7 @@ const METRIC_LABELS: Record<string, string> = {
 function avgOf(metrics: MetricScores): number {
   const vals = METRIC_KEYS.map((k) => metrics[k]);
   const nonZero = vals.filter((v) => v > 0);
-  if (nonZero.length === 0) return 0;
+  if (nonZero.length === 0) return 7;
   return Math.round((nonZero.reduce((a, b) => a + b, 0) / nonZero.length) * 10) / 10;
 }
 
@@ -141,7 +141,7 @@ export default function LiveScores({
         </div>
       </div>
 
-      {/* VIEWER row — read-only display */}
+      {/* VIEWER row — read-only display (defaults to 7.0 when no votes) */}
       <div className="flex items-center gap-3 mb-4">
         <span className="font-[family-name:var(--font-mono)] text-xs text-[#E89B2E] uppercase tracking-wider w-[60px] shrink-0 text-right">
           Viewers
@@ -152,10 +152,10 @@ export default function LiveScores({
               <div className="flex items-center">
                 <span
                   className={`font-[family-name:var(--font-mono)] text-sm w-14 text-center ${
-                    viewerMetrics[key] > 0 ? "text-[#E89B2E]" : "text-[#F0E6D3]/20"
+                    viewerVotes > 0 && viewerMetrics[key] > 0 ? "text-[#E89B2E]" : (viewerVotes > 0 ? "text-[#F0E6D3]/20" : "text-[#E89B2E]/50")
                   }`}
                 >
-                  {viewerMetrics[key] > 0 ? viewerMetrics[key].toFixed(1) : "—"}
+                  {viewerVotes > 0 ? (viewerMetrics[key] > 0 ? viewerMetrics[key].toFixed(1) : "—") : "7.0"}
                 </span>
                 <DeltaIndicator
                   host={hostMetrics[key]}
@@ -167,11 +167,15 @@ export default function LiveScores({
         </div>
         <div className="w-24 text-center">
           <span className="font-[family-name:var(--font-mono)] text-lg text-[#E89B2E] font-bold">
-            {viewerAvg > 0 ? viewerAvg.toFixed(1) : "—"}
+            {viewerVotes > 0 ? (viewerAvg > 0 ? viewerAvg.toFixed(1) : "—") : "7.0"}
           </span>
-          {viewerVotes > 0 && (
+          {viewerVotes > 0 ? (
             <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#F0E6D3]/30 ml-1">
               ({viewerVotes})
+            </span>
+          ) : (
+            <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#F0E6D3]/20 ml-1">
+              (0)
             </span>
           )}
         </div>

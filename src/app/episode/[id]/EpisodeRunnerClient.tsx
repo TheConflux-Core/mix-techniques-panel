@@ -48,10 +48,10 @@ export default function EpisodeRunnerClient() {
   const [timerRunning, setTimerRunning] = useState(false);
 
   // Scoring & Audio state
-  const defaultMetrics: MetricScores = { lowEnd: 5, clarity: 5, balance: 5, dynamics: 5, image: 5 };
+  const defaultMetrics: MetricScores = { lowEnd: 7, clarity: 7, balance: 7, dynamics: 7, image: 7 };
   const emptyMetrics: MetricScores = { lowEnd: 0, clarity: 0, balance: 0, dynamics: 0, image: 0 };
   const [hostMetrics, setHostMetrics] = useState<MetricScores>({ ...defaultMetrics });
-  const [viewerMetrics, setViewerMetrics] = useState<MetricScores>({ ...emptyMetrics });
+  const [viewerMetrics, setViewerMetrics] = useState<MetricScores>({ ...defaultMetrics });
   const [viewerVotes, setViewerVotes] = useState(0);
   const [scoreLocked, setScoreLocked] = useState(false);
   const [votingClosed, setVotingClosed] = useState(false);
@@ -102,14 +102,14 @@ export default function EpisodeRunnerClient() {
     }
     if (msg.type === "next-contestant") {
       setHostMetrics({ ...defaultMetrics });
-      setViewerMetrics({ ...emptyMetrics });
+      setViewerMetrics({ ...defaultMetrics });
       setViewerVotes(0);
       setScoreLocked(false);
       setVotingClosed(false);
     }
     if (msg.type === "reset-episode") {
       setHostMetrics({ ...defaultMetrics });
-      setViewerMetrics({ ...emptyMetrics });
+      setViewerMetrics({ ...defaultMetrics });
       setViewerVotes(0);
       setScoreLocked(false);
       setVotingClosed(false);
@@ -411,7 +411,7 @@ export default function EpisodeRunnerClient() {
 
   const handleActivateContestant = useCallback((index: number) => {
     setActiveContestantIndex(index);
-    setHostMetrics({ ...emptyMetrics });
+    setHostMetrics({ ...defaultMetrics });
     setScoreLocked(false);
     setVotingClosed(false);
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
@@ -482,8 +482,8 @@ export default function EpisodeRunnerClient() {
   const handleResetEpisode = useCallback(() => {
     if (!window.confirm("Reset all scores and votes for this episode?")) return;
     sendMessage("reset-episode", {});
-    setHostMetrics({ ...emptyMetrics });
-    setViewerMetrics({ ...emptyMetrics });
+    setHostMetrics({ ...defaultMetrics });
+    setViewerMetrics({ ...defaultMetrics });
     setViewerVotes(0);
     setScoreLocked(false);
     setVotingClosed(false);
