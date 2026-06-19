@@ -4,11 +4,15 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "wss://ws.mixtechniques.com";
 
-export function useOverlaySocket() {
+export type WSMessage = { type: string; data: Record<string, unknown> };
+
+export function useOverlaySocket(onMessage?: (msg: WSMessage) => void) {
   const [connected, setConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
+  const onMessageRef = useRef(onMessage);
+  onMessageRef.current = onMessage;
 
   const connect = useCallback(() => {
     if (wsRef.current) return;
@@ -39,6 +43,14 @@ export function useOverlaySocket() {
 
     ws.onerror = () => {
       ws.close();
+    };
+
+    ws.onmessage = (evt) => {
+      if (!mountedRef.current || !onMessageRef.current) return;
+      try {
+        const msg = JSON.parse(evt.data) as WSMessage;
+        onMessageRef.current(msg);
+      } catch { /* ignore malformed */ }
     };
 
     wsRef.current = ws;

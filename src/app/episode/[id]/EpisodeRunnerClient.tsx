@@ -17,7 +17,7 @@ import AudioControls from "@/components/show-runner/AudioControls";
 import PreFlightCheck from "@/components/show-runner/PreFlightCheck";
 import QuickActions from "@/components/show-runner/QuickActions";
 import StatusBadge from "@/components/StatusBadge";
-import { useOverlaySocket } from "@/lib/useOverlaySocket";
+import { useOverlaySocket, type WSMessage } from "@/lib/useOverlaySocket";
 
 export default function EpisodeRunnerClient() {
   const params = useParams();
@@ -64,7 +64,58 @@ export default function EpisodeRunnerClient() {
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const { connected, sendMessage, pushSegment, pushContestant, pushTrack, pushEpisodeStatus, pushLockScore, pushPlayTrack, pushPauseTrack, pushPullStart, pushPullAnnounce } = useOverlaySocket();
+  const handleWSMessage = useCallback((msg: WSMessage) => {
+    const d = msg.data as any;
+    if ((msg.type === "score-update" || msg.type === "state") && d.metrics) {
+      setHostMetrics((prev) => {
+        const next = { ...prev };
+        (Object.keys(d.metrics) as (keyof MetricScores)[]).forEach((k) => {
+          if (d.metrics[k] !== undefined) next[k] = d.metrics[k];
+        });
+        return next;
+      });
+    }
+    if (msg.type === "state" && d.viewerMetrics) {
+      setViewerMetrics((prev) => {
+        const next = { ...prev };
+        (Object.keys(d.viewerMetrics) as (keyof MetricScores)[]).forEach((k) => {
+          if (d.viewerMetrics[k] !== undefined) next[k] = d.viewerMetrics[k];
+        });
+        return next;
+      });
+      if (d.viewerVotes !== undefined) setViewerVotes(d.viewerVotes);
+    }
+    if (msg.type === "viewer-score-update" && d.metrics) {
+      setViewerMetrics((prev) => {
+        const next = { ...prev };
+        (Object.keys(d.metrics) as (keyof MetricScores)[]).forEach((k) => {
+          if (d.metrics[k] !== undefined) next[k] = d.metrics[k];
+        });
+        return next;
+      });
+      if (d.votes !== undefined) setViewerVotes(d.votes);
+    }
+    if (msg.type === "reset-scores") {
+      setHostMetrics({ ...emptyMetrics });
+      setScoreLocked(false);
+    }
+    if (msg.type === "next-contestant") {
+      setHostMetrics({ ...emptyMetrics });
+      setViewerMetrics({ ...emptyMetrics });
+      setViewerVotes(0);
+      setScoreLocked(false);
+      setVotingClosed(false);
+    }
+    if (msg.type === "reset-episode") {
+      setHostMetrics({ ...emptyMetrics });
+      setViewerMetrics({ ...emptyMetrics });
+      setViewerVotes(0);
+      setScoreLocked(false);
+      setVotingClosed(false);
+    }
+  }, []);
+
+  const { connected, sendMessage, pushSegment, pushContestant, pushTrack, pushEpisodeStatus, pushLockScore, pushPlayTrack, pushPauseTrack, pushPullStart, pushPullAnnounce } = useOverlaySocket(handleWSMessage);
 
   const isLive = episode?.status === "live";
   const isReady = episode?.status === "ready";
