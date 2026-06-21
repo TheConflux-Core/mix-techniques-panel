@@ -181,6 +181,16 @@ export function useOverlaySocket(onMessage?: (msg: WSMessage) => void) {
     [sendMessage]
   );
 
+  /** Open voting */
+  const pushVotingOpen = useCallback(() => {
+    return sendMessage("voting-open", {});
+  }, [sendMessage]);
+
+  /** Close voting */
+  const pushVotingClosed = useCallback(() => {
+    return sendMessage("voting-closed", {});
+  }, [sendMessage]);
+
   /** Trigger pull animation on overlay (name hidden) */
   const pushPullStart = useCallback(
     (poolSize: number) => {
@@ -218,5 +228,7 @@ export function useOverlaySocket(onMessage?: (msg: WSMessage) => void) {
     pushSeekTrack,
     pushPullStart,
     pushPullAnnounce,
+    pushVotingOpen,
+    pushVotingClosed,
   };
 }

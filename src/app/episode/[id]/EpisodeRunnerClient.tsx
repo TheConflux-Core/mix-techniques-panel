@@ -114,9 +114,18 @@ export default function EpisodeRunnerClient() {
       setScoreLocked(false);
       setVotingClosed(false);
     }
+    if (msg.type === "state" && d.votingOpen !== undefined) {
+      setVotingClosed(!d.votingOpen);
+    }
+    if (msg.type === "voting-open") {
+      setVotingClosed(false);
+    }
+    if (msg.type === "voting-closed") {
+      setVotingClosed(true);
+    }
   }, []);
 
-  const { connected, sendMessage, pushSegment, pushContestant, pushTrack, pushEpisodeStatus, pushLockScore, pushPlayTrack, pushPauseTrack, pushPullStart, pushPullAnnounce } = useOverlaySocket(handleWSMessage);
+  const { connected, sendMessage, pushSegment, pushContestant, pushTrack, pushEpisodeStatus, pushLockScore, pushPlayTrack, pushPauseTrack, pushPullStart, pushPullAnnounce, pushVotingOpen, pushVotingClosed } = useOverlaySocket(handleWSMessage);
 
   const isLive = episode?.status === "live";
   const isReady = episode?.status === "ready";
@@ -441,7 +450,15 @@ export default function EpisodeRunnerClient() {
   const handleTimerReset = useCallback(() => { setTimerRunning(false); setTimerSeconds(0); }, []);
 
   const handleLockScore = useCallback(() => { setScoreLocked(true); pushLockScore(); }, [pushLockScore]);
-  const handleCloseVoting = useCallback(() => { setVotingClosed(true); pushSegment("VERDICT"); }, [pushSegment]);
+  const handleToggleVoting = useCallback(() => {
+    if (votingClosed) {
+      setVotingClosed(false);
+      pushVotingOpen();
+    } else {
+      setVotingClosed(true);
+      pushVotingClosed();
+    }
+  }, [votingClosed, pushVotingOpen, pushVotingClosed]);
 
   const handlePlay = useCallback(() => {
     if (audioRef.current && currentTrack?.url) {
@@ -795,7 +812,7 @@ export default function EpisodeRunnerClient() {
                       viewerMetrics={viewerMetrics}
                       viewerVotes={viewerVotes}
                       onLockScore={handleLockScore}
-                      onCloseVoting={handleCloseVoting}
+                      onToggleVoting={handleToggleVoting}
                       locked={scoreLocked}
                       votingClosed={votingClosed}
                     />

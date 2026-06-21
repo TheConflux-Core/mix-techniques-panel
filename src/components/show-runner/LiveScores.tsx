@@ -15,7 +15,7 @@ interface LiveScoresProps {
   viewerMetrics: MetricScores;
   viewerVotes: number;
   onLockScore: () => void;
-  onCloseVoting: () => void;
+  onToggleVoting: () => void;
   locked: boolean;
   votingClosed: boolean;
 }
@@ -65,7 +65,7 @@ export default function LiveScores({
   viewerMetrics,
   viewerVotes,
   onLockScore,
-  onCloseVoting,
+  onToggleVoting,
   locked,
   votingClosed,
 }: LiveScoresProps) {
@@ -199,15 +199,14 @@ export default function LiveScores({
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={onCloseVoting}
-            disabled={votingClosed}
-            className={`font-[family-name:var(--font-mono)] text-xs uppercase tracking-wider px-4 py-2 rounded font-bold transition-colors ${
+            onClick={onToggleVoting}
+            className={`font-[family-name:var(--font-mono)] text-xs uppercase tracking-wider px-4 py-2 rounded font-bold transition-colors cursor-pointer ${
               votingClosed
-                ? "border border-red-600/40 text-red-400/50 bg-red-900/10 cursor-default"
-                : "border border-[#C4392A] text-[#C4392A] bg-transparent hover:bg-[#C4392A]/10 cursor-pointer"
+                ? "border border-green-600/40 text-green-400 bg-green-900/10 hover:bg-green-900/20"
+                : "border border-[#C4392A] text-[#C4392A] bg-transparent hover:bg-[#C4392A]/10"
             }`}
           >
-            {votingClosed ? "🚫 Voting Closed" : "🚫 Close Voting"}
+            {votingClosed ? "✅ Open Voting" : "🚫 Close Voting"}
           </button>
           <button
             onClick={onLockScore}
