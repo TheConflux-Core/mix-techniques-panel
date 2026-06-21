@@ -245,6 +245,17 @@ export default function EpisodeRunnerClient() {
     }
   }, [episode]);
 
+  // Re-push current contestant + track when WS reconnects
+  useEffect(() => {
+    if (!connected || !contestants.length) return;
+    const c = contestants[activeContestantIndex];
+    if (!c) return;
+    pushContestant({ name: c.name, city: c.location || "", genre: c.genre || "", handle: c.social_links?.instagram || "" });
+    if (c.track_title || c.track_signed_url || c.track_url) {
+      pushTrack({ title: c.track_title || "Untitled", artist: c.name, url: c.track_signed_url || c.track_url || "" });
+    }
+  }, [connected]);
+
   // ─── Submission management ────────────────────────────────
   const handleToggleSubmissions = async () => {
     if (!episode) return;
@@ -345,7 +356,7 @@ export default function EpisodeRunnerClient() {
       handle: lastPulled.social_links?.instagram || "",
     });
     if (lastPulled.track_title) {
-      pushTrack({ title: lastPulled.track_title, artist: lastPulled.name });
+      pushTrack({ title: lastPulled.track_title, artist: lastPulled.name, url: lastPulled.track_signed_url || lastPulled.track_url });
     }
     setLastPulled(null);
   };
@@ -420,7 +431,7 @@ export default function EpisodeRunnerClient() {
     const c = contestants[index];
     if (c) {
       pushContestant({ name: c.name, city: c.location || "", genre: c.genre || "", handle: c.social_links?.instagram || "" });
-      if (c.track_title) pushTrack({ title: c.track_title, artist: c.name });
+      if (c.track_title) pushTrack({ title: c.track_title, artist: c.name, url: c.track_signed_url || c.track_url });
       if (c.track_signed_url) setCurrentTrack({ title: c.track_title || "", artist: c.name, url: c.track_signed_url });
     }
   }, [contestants, pushContestant, pushTrack]);

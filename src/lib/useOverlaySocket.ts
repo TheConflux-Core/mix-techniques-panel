@@ -95,10 +95,11 @@ export function useOverlaySocket(onMessage?: (msg: WSMessage) => void) {
 
   /** Push track info to overlays */
   const pushTrack = useCallback(
-    (track: { title: string; artist?: string }) => {
+    (track: { title: string; artist?: string; url?: string }) => {
       return sendMessage("track-update", {
         title: track.title,
         artist: track.artist || "",
+        url: track.url || "",
       });
     },
     [sendMessage]
