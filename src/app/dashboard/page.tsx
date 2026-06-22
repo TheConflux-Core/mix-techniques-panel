@@ -26,6 +26,10 @@ export default function AdminDashboard() {
       fetchSubmissions();
     };
     checkAuth();
+
+    // Poll for new submissions every 10 seconds
+    const pollInterval = setInterval(fetchSubmissions, 10000);
+    return () => clearInterval(pollInterval);
   }, []);
 
   const fetchSubmissions = async () => {

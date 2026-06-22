@@ -213,36 +213,38 @@ export default function EpisodeRunnerClient() {
   // ─── Realtime: listen for new submissions ─────────────────
   useEffect(() => {
     if (!episodeId) return;
+
+    const refetch = () => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          fetchContestants(episodeId, session.access_token);
+          fetchAvailable();
+        }
+      });
+    };
+
+    // Supabase Realtime (works if replication is enabled on the table)
     const channel = supabase
       .channel("submissions-changes")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "submissions" },
-        () => {
-          // Refetch both lists when a new submission arrives
-          supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
-              fetchContestants(episodeId, session.access_token);
-              fetchAvailable();
-            }
-          });
-        }
+        { event: "INSERT", schema: "public", table: "submissions", filter: `episode_id=eq.${episodeId}` },
+        refetch
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "submissions" },
-        () => {
-          supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
-              fetchContestants(episodeId, session.access_token);
-              fetchAvailable();
-            }
-          });
-        }
+        { event: "UPDATE", schema: "public", table: "submissions", filter: `episode_id=eq.${episodeId}` },
+        refetch
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Polling fallback — catches inserts even if Realtime isn't enabled
+    const pollInterval = setInterval(refetch, 10000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(pollInterval);
+    };
   }, [episodeId, fetchContestants, fetchAvailable]);
 
   // Fetch contestants when episode loads
