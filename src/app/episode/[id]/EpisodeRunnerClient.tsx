@@ -65,6 +65,7 @@ export default function EpisodeRunnerClient() {
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const wsInitDoneFor = useRef<string | null>(null);
   const handleWSMessage = useCallback((msg: WSMessage) => {
     const d = msg.data as any;
     if ((msg.type === "score-update" || msg.type === "state") && d.metrics) {
@@ -130,6 +131,20 @@ export default function EpisodeRunnerClient() {
   const isLive = episode?.status === "live";
   const isReady = episode?.status === "ready";
   const controlsEnabled = isLive || isReady;
+
+  // ─── Reset WS overlay state when entering a new episode ────
+  useEffect(() => {
+    if (!connected || !episode) return;
+    // Only reset once per episode load (don't re-reset on WS reconnect mid-show)
+    if (wsInitDoneFor.current === episode.id) return;
+    wsInitDoneFor.current = episode.id;
+
+    // Clear stale overlay data from any previous episode
+    sendMessage("reset-episode", {});
+    sendMessage("episode-update", { episode: episode.episode_number });
+    sendMessage("contestant-update", { name: '', city: '', genre: '', handle: '' });
+    sendMessage("segment-change", { segment: 'COLD_OPEN' });
+  }, [connected, episode, sendMessage]);
 
   const hasBackup = contestants.some((c) => c.pull_order === 4);
   const contestantsConfirmed = contestants.filter((c) => c.status === "pulled" || c.status === "aired").length;
