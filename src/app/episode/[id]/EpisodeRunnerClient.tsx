@@ -54,7 +54,7 @@ export default function EpisodeRunnerClient() {
   const [viewerMetrics, setViewerMetrics] = useState<MetricScores>({ ...defaultMetrics });
   const [viewerVotes, setViewerVotes] = useState(0);
   const [scoreLocked, setScoreLocked] = useState(false);
-  const [votingClosed, setVotingClosed] = useState(false);
+  const [votingClosed, setVotingClosed] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<{ title: string; artist: string; url: string } | null>(null);
   const [volume, setVolume] = useState(70);
