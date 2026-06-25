@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create a Daily.co room
+    // Create a Jitsi room
     const roomName = `mt-backstage-${submission_id}`;
     await createRoom(roomName, "private");
     const roomUrl = getRoomUrl(roomName);

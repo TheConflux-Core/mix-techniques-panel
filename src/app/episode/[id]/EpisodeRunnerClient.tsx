@@ -542,11 +542,22 @@ export default function EpisodeRunnerClient() {
     setTimerRunning(false);
   }, [handleStatusChange]);
 
-  const handleBringOnAir = useCallback(() => {
+  const handleBringOnAir = useCallback(async () => {
     const current = contestants[activeContestantIndex];
     if (!current) return;
     const backstageUrl = current.backstage_room_url;
     if (!backstageUrl) return;
+    // Update submission status → "selected" so backstage page shows "YOU'RE LIVE!"
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await fetch(`/api/submissions/${current.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ status: "selected" }),
+        }).catch(() => {});
+      }
+    } catch {} // Non-blocking
     // Load camera feed to slot 0
     sendMessage("camera-feed", {
       slot: 0,
@@ -558,7 +569,24 @@ export default function EpisodeRunnerClient() {
     sendMessage("camera-layout", { layout: "3up" });
     // Switch segment to THE_INTERVIEW
     handleSegmentChange("THE_INTERVIEW");
-  }, [contestants, activeContestantIndex, sendMessage, handleSegmentChange]);
+  }, [contestants, activeContestantIndex, sendMessage, handleSegmentChange, supabase]);
+
+  const handleCameraClear = useCallback(async (slotIndex: number) => {
+    // When the artist camera (slot 0) is cleared, mark submission as "aired"
+    if (slotIndex !== 0) return;
+    const current = contestants[activeContestantIndex];
+    if (!current) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await fetch(`/api/submissions/${current.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ status: "aired" }),
+        }).catch(() => {});
+      }
+    } catch {} // Non-blocking
+  }, [contestants, activeContestantIndex, supabase]);
 
   // ─── Render ───────────────────────────────────────────────
   const nextStatus = episode ? getNextStatus(episode.status) : null;
@@ -861,6 +889,7 @@ export default function EpisodeRunnerClient() {
                       sendMessage={sendMessage}
                       contestants={contestants}
                       activeContestantIndex={activeContestantIndex}
+                      onClear={handleCameraClear}
                     />
                     <BackstageStatus
                       contestants={contestants}

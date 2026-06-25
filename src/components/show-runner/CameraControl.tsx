@@ -17,6 +17,7 @@ interface CameraControlProps {
   sendMessage: (type: string, data: Record<string, unknown>) => boolean;
   contestants: Submission[];
   activeContestantIndex: number;
+  onClear?: (slotIndex: number) => void;
 }
 
 const LAYOUTS = ["1up", "2up", "3up", "4up"] as const;
@@ -26,6 +27,7 @@ export default function CameraControl({
   sendMessage,
   contestants,
   activeContestantIndex,
+  onClear,
 }: CameraControlProps) {
   const supabase = createClient();
   const [activeLayout, setActiveLayout] = useState<string>("1up");
@@ -81,8 +83,9 @@ export default function CameraControl({
     (index: number) => {
       sendMessage("camera-clear", { slot: index });
       updateSlot(index, { active: false, url: "", label: "" });
+      onClear?.(index);
     },
-    [sendMessage, updateSlot]
+    [sendMessage, updateSlot, onClear]
   );
 
   const handleLoadAllFromBackstage = useCallback(async () => {
