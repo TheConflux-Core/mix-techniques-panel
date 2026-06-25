@@ -567,7 +567,7 @@ export default function EpisodeRunnerClient() {
     sendMessage("camera-layout", { layout: "3up" });
     // Switch segment to THE_INTERVIEW
     handleSegmentChange("THE_INTERVIEW");
-  }, [contestants, activeContestantIndex, sendMessage, handleSegmentChange, supabase]);
+  }, [contestants, activeContestantIndex, sendMessage, handleSegmentChange]);
 
   const handleCameraClear = useCallback(async (slotIndex: number) => {
     // When the artist camera (slot 0) is cleared, mark submission as "aired"
@@ -584,7 +584,7 @@ export default function EpisodeRunnerClient() {
         }).catch(() => {});
       }
     } catch {} // Non-blocking
-  }, [contestants, activeContestantIndex, supabase]);
+  }, [contestants, activeContestantIndex]);
 
   // ─── Render ───────────────────────────────────────────────
   const nextStatus = episode ? getNextStatus(episode.status) : null;
