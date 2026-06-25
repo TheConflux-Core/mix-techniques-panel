@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Submission } from "@/lib/types";
 
@@ -24,7 +24,10 @@ export default function BackstageStatus({
   const [creating, setCreating] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const pulled = contestants.filter((c) => c.status === "pulled");
+  const pulled = useMemo(
+    () => contestants.filter((c) => c.status === "pulled"),
+    [contestants]
+  );
 
   // Build entries from pulled contestants
   useEffect(() => {
