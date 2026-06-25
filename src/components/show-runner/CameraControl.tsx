@@ -236,7 +236,7 @@ export default function CameraControl({
                 type="text"
                 value={slot.url}
                 onChange={(e) => updateSlot(i, { url: e.target.value })}
-                placeholder="https://daily.co/room?t=xxx"
+                placeholder="https://meet.jit.si/room-name"
                 className="flex-1 bg-[#1A0F0A] border border-[#3A2818] rounded px-2 py-1.5 text-[#F0E6D3] font-[family-name:var(--font-mono)] text-xs focus:border-[#D4A843]/50 focus:outline-none transition-colors"
               />
             </div>

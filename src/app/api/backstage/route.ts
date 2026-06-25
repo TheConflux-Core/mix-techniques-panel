@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createRoom, getRoomUrl } from "@/lib/daily";
+import { createRoom, getRoomUrl } from "@/lib/video";
 
 export async function POST(request: NextRequest) {
   try {
