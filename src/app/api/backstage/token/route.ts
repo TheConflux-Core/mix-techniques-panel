@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createMeetingToken } from "@/lib/daily";
 
+/**
+ * Token endpoint — Jitsi doesn't require tokens.
+ * Kept for API compatibility. Returns the room URL directly.
+ */
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -23,7 +26,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch submission to verify ownership and get room info
+    // Fetch submission to verify ownership
     const { data: submission, error: fetchError } = await supabase
       .from("submissions")
       .select("*")
@@ -49,21 +52,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!submission.backstage_room_name) {
+    if (!submission.backstage_room_url) {
       return NextResponse.json(
         { error: "No backstage room exists for this submission. Create one first." },
         { status: 400 }
       );
     }
 
-    // Create a meeting token (non-owner)
-    const token = await createMeetingToken(submission.backstage_room_name, {
-      isOwner: false,
-      userName: submission.name || "Artist",
-    });
-
+    // Jitsi doesn't need tokens — return the room URL
     return NextResponse.json({
-      token,
+      token: submission.backstage_room_name,
       room_url: submission.backstage_room_url,
     });
   } catch (err: unknown) {
