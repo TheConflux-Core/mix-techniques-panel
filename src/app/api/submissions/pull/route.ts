@@ -103,6 +103,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fire Discord webhook (non-blocking)
+    const webhookUrl = process.env.DISCORD_PULL_WEBHOOK_URL;
+    if (webhookUrl && data) {
+      fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            title: "🎲 Name Pulled!",
+            description: `**${data.name}** from ${data.location || "Unknown"} has been pulled for Episode!`,
+            color: 0xd4a843, // Studio Gold
+            fields: [
+              { name: "Genre", value: data.genre || "N/A", inline: true },
+              { name: "Track", value: data.track_title || "N/A", inline: true },
+            ],
+            footer: { text: "Mix Techniques — Show Us Your Mix" },
+            timestamp: new Date().toISOString(),
+          }],
+        }),
+      }).catch(() => {}); // Don't block on webhook failure
+    }
+
+    // Send WS notification for in-app badge (non-blocking)
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "wss://ws.mixtechniques.com";
+    const wsHttpUrl = wsUrl.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
+    fetch(`${wsHttpUrl}/api/notify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "name-pulled",
+        submission: {
+          id: data.id,
+          name: data.name,
+          track_title: data.track_title,
+          genre: data.genre,
+          location: data.location,
+        },
+      }),
+    }).catch(() => {}); // Don't block on WS failure
+
     return NextResponse.json(data);
   } catch (err: any) {
     console.error("Pull confirm error:", err);

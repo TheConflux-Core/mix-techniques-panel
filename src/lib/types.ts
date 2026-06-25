@@ -47,6 +47,7 @@ export interface Submission {
   file_format: string | null;
   waveform_data: number[] | null;
   pull_order: number | null;
+  backstage_room_url: string | null;
   status: "submitted" | "pulled" | "under_review" | "selected" | "aired" | "scored";
   episode_id: string | null;
   episodes?: { episode_number: number; title: string | null } | null;

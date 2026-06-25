@@ -94,6 +94,20 @@ export default function ContestantQueue({ contestants, activeIndex, onActivate }
                 </p>
               </div>
 
+              {/* Backstage indicator */}
+              {contestant.backstage_room_url && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(contestant.backstage_room_url!);
+                  }}
+                  title="Copy backstage room URL"
+                  className="font-[family-name:var(--font-mono)] text-[10px] px-1.5 py-0.5 rounded border border-green-700/40 text-green-400 hover:bg-green-900/30 transition-colors"
+                >
+                  🎤
+                </button>
+              )}
+
               {/* Status badge */}
               <span className={`font-[family-name:var(--font-mono)] text-[10px] px-2 py-0.5 rounded uppercase tracking-wider border ${statusClass}`}>
                 {contestant.status}

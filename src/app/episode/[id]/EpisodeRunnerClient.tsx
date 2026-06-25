@@ -16,6 +16,8 @@ import LiveScores, { type MetricScores } from "@/components/show-runner/LiveScor
 import AudioControls from "@/components/show-runner/AudioControls";
 import PreFlightCheck from "@/components/show-runner/PreFlightCheck";
 import QuickActions from "@/components/show-runner/QuickActions";
+import CameraControl from "@/components/show-runner/CameraControl";
+import BackstageStatus from "@/components/show-runner/BackstageStatus";
 import StatusBadge from "@/components/StatusBadge";
 import { useOverlaySocket, type WSMessage } from "@/lib/useOverlaySocket";
 
@@ -540,6 +542,24 @@ export default function EpisodeRunnerClient() {
     setTimerRunning(false);
   }, [handleStatusChange]);
 
+  const handleBringOnAir = useCallback(() => {
+    const current = contestants[activeContestantIndex];
+    if (!current) return;
+    const backstageUrl = current.backstage_room_url;
+    if (!backstageUrl) return;
+    // Load camera feed to slot 0
+    sendMessage("camera-feed", {
+      slot: 0,
+      url: backstageUrl,
+      label: current.name,
+      role: "artist",
+    });
+    // Set layout to 3up
+    sendMessage("camera-layout", { layout: "3up" });
+    // Switch segment to THE_INTERVIEW
+    handleSegmentChange("THE_INTERVIEW");
+  }, [contestants, activeContestantIndex, sendMessage, handleSegmentChange]);
+
   // ─── Render ───────────────────────────────────────────────
   const nextStatus = episode ? getNextStatus(episode.status) : null;
 
@@ -835,15 +855,33 @@ export default function EpisodeRunnerClient() {
                     />
                   </div>
 
+                  {/* Camera Control + Backstage row */}
+                  <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 mt-6">
+                    <CameraControl
+                      sendMessage={sendMessage}
+                      contestants={contestants}
+                      activeContestantIndex={activeContestantIndex}
+                    />
+                    <BackstageStatus
+                      contestants={contestants}
+                      episodeId={episodeId}
+                    />
+                  </div>
+
                   <QuickActions
                     onGoToBreak={handleGoToBreak}
                     onActivateBackup={handleActivateBackup}
                     onSkipContestant={handleSkipContestant}
                     onResetEpisode={handleResetEpisode}
                     onEndShow={handleEndShow}
+                    onBringOnAir={handleBringOnAir}
                     isOnBreak={isOnBreak}
                     hasBackup={hasBackup}
                     currentSegment={currentSegment}
+                    canBringOnAir={
+                      !!contestants[activeContestantIndex] &&
+                      !!contestants[activeContestantIndex].backstage_room_url
+                    }
                   />
                 </>
               )}

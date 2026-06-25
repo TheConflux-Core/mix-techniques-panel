@@ -6,9 +6,11 @@ interface QuickActionsProps {
   onSkipContestant: () => void;
   onResetEpisode: () => void;
   onEndShow: () => void;
+  onBringOnAir: () => void;
   isOnBreak: boolean;
   hasBackup: boolean;
   currentSegment: string;
+  canBringOnAir: boolean;
 }
 
 interface ActionButton {
@@ -28,11 +30,22 @@ export default function QuickActions({
   onSkipContestant,
   onResetEpisode,
   onEndShow,
+  onBringOnAir,
   isOnBreak,
   hasBackup,
   currentSegment,
+  canBringOnAir,
 }: QuickActionsProps) {
   const buttons: ActionButton[] = [
+    {
+      icon: "📡",
+      label: "BRING ON AIR",
+      accent: "border-[#D4A843] text-[#1A0F0A] bg-[#D4A843] font-bold",
+      hoverBg: "hover:bg-[#E89B2E]",
+      glow: "shadow-[0_0_12px_rgba(212,168,67,0.3)]",
+      onClick: onBringOnAir,
+      disabled: !canBringOnAir,
+    },
     {
       icon: "🚨",
       label: isOnBreak ? "▶ RESUME" : "BREAK",
