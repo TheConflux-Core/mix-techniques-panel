@@ -84,6 +84,15 @@ export const STATUS_OPTIONS = [
   { value: "scored", label: "Scored" },
 ] as const;
 
+export interface User {
+  id: string;
+  name: string | null;
+  email: string;
+  location: string | null;
+  is_judge: boolean;
+  created_at: string;
+}
+
 export const STATUS_COLORS: Record<string, string> = {
   submitted: "border-[#D4A843] text-[#D4A843]",
   under_review: "bg-[#E89B2E] text-[#1A0F0A]",

@@ -8,11 +8,13 @@ import { useRouter } from "next/navigation";
 import type { Submission } from "@/lib/types";
 import Navbar from "@/components/Navbar";
 import AdminTable from "@/components/AdminTable";
+import UsersSection from "@/components/UsersSection";
 
 export default function AdminDashboard() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -23,6 +25,7 @@ export default function AdminDashboard() {
         router.push("/");
         return;
       }
+      setAuthToken(session.access_token);
       fetchSubmissions();
     };
     checkAuth();
@@ -114,6 +117,16 @@ export default function AdminDashboard() {
               {error}
             </div>
           )}
+
+          {/* Users Section */}
+          {authToken && <UsersSection token={authToken} />}
+
+          {/* Submissions Section */}
+          <div className="mb-4">
+            <h2 className="font-[family-name:var(--font-display)] text-xl text-[#F0E6D3] uppercase tracking-[0.1em] font-bold mb-4">
+              Submissions
+            </h2>
+          </div>
 
           {loading ? (
             <div className="text-center py-20">

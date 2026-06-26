@@ -1,9 +1,11 @@
 /**
  * Video call helper for Mix Techniques Backstage
- * Uses Jitsi Meet (free, no account required, iframe-embeddable)
+ * Uses self-hosted Jitsi Meet on Linode
  */
 
-const JITSI_DOMAIN = "meet.jit.si";
+// Self-hosted Jitsi on Linode
+const JITSI_DOMAIN = "judge.mixtechniques.com";
+const JITSI_PROTOCOL = "https";
 
 /**
  * Get the full room URL for a given room name.
@@ -12,7 +14,7 @@ const JITSI_DOMAIN = "meet.jit.si";
  * @returns The full Jitsi room URL
  */
 export function getRoomUrl(roomName: string): string {
-  return `https://${JITSI_DOMAIN}/${roomName}`;
+  return `${JITSI_PROTOCOL}://${JITSI_DOMAIN}/${roomName}`;
 }
 
 /**
