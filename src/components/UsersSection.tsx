@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { User } from "@/lib/types";
+import type { Profile } from "@/lib/types";
 
 interface UsersSectionProps {
   token: string;
 }
 
 export default function UsersSection({ token }: UsersSectionProps) {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -26,7 +26,7 @@ export default function UsersSection({ token }: UsersSectionProps) {
 
       if (!res.ok) throw new Error("Failed to fetch users");
       const data = await res.json();
-      setUsers(data);
+      setUsers(data as Profile[]);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load users");
     } finally {
@@ -49,7 +49,7 @@ export default function UsersSection({ token }: UsersSectionProps) {
     setSearch(debouncedSearch);
   }, [debouncedSearch]);
 
-  const toggleJudge = async (user: User) => {
+  const toggleJudge = async (user: Profile) => {
     try {
       const res = await fetch(`/api/users/${user.id}`, {
         method: "PATCH",
@@ -69,8 +69,8 @@ export default function UsersSection({ token }: UsersSectionProps) {
 
   const filteredUsers = users.filter((u) => {
     if (filter === "judges") return u.is_judge;
-    if (filter === "artists") return !u.is_judge; // artists = non-judges for now
-    return true;
+    if (filter === "viewers") return !u.is_judge && u.role === "user";
+    return true; // "all" and "artists" show everyone
   });
 
   const judgeCount = users.filter((u) => u.is_judge).length;
@@ -91,7 +91,7 @@ export default function UsersSection({ token }: UsersSectionProps) {
         <div className="relative">
           <input
             type="text"
-            placeholder="Search name or email..."
+            placeholder="Search name or location..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="bg-[#0F0A07] border border-[#3A2818] text-[#F0E6D3] font-[family-name:var(--font-mono)] text-sm rounded px-3 py-2 pl-8 w-64 focus:border-[#D4A843] focus:ring-1 focus:ring-[#D4A843]/30 outline-none placeholder:text-[#F0E6D3]/20"
@@ -148,7 +148,7 @@ export default function UsersSection({ token }: UsersSectionProps) {
             <thead>
               <tr className="border-b border-[#3A2818]">
                 <th className="text-left py-3 px-4 text-[#D4A843] uppercase tracking-wider text-xs font-medium">Name</th>
-                <th className="text-left py-3 px-4 text-[#D4A843] uppercase tracking-wider text-xs font-medium">Email</th>
+                <th className="text-left py-3 px-4 text-[#D4A843] uppercase tracking-wider text-xs font-medium">Genre</th>
                 <th className="text-left py-3 px-4 text-[#D4A843] uppercase tracking-wider text-xs font-medium">Location</th>
                 <th className="text-left py-3 px-4 text-[#D4A843] uppercase tracking-wider text-xs font-medium">Role</th>
                 <th className="text-left py-3 px-4 text-[#D4A843] uppercase tracking-wider text-xs font-medium">Joined</th>
@@ -164,9 +164,9 @@ export default function UsersSection({ token }: UsersSectionProps) {
                   }`}
                 >
                   <td className="py-3 px-4 text-[#F0E6D3]">
-                    {user.name || "—"}
+                    {user.display_name || "—"}
                   </td>
-                  <td className="py-3 px-4 text-[#F0E6D3]/70">{user.email}</td>
+                  <td className="py-3 px-4 text-[#F0E6D3]/70">{user.genre || "—"}</td>
                   <td className="py-3 px-4 text-[#F0E6D3]/50">{user.location || "—"}</td>
                   <td className="py-3 px-4">
                     {user.is_judge ? (

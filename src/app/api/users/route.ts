@@ -17,13 +17,13 @@ export async function GET(request: NextRequest) {
     const filter = searchParams.get("filter") || "all";
 
     let query = supabase
-      .from("users")
+      .from("profiles")
       .select("*")
       .order("created_at", { ascending: false });
 
     // Search filter
     if (search) {
-      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+      query = query.or(`display_name.ilike.%${search}%,location.ilike.%${search}%`);
     }
 
     // Role filter
@@ -31,14 +31,14 @@ export async function GET(request: NextRequest) {
       query = query.eq("is_judge", true);
     }
 
-    const { data: users, error } = await query;
+    const { data: profiles, error } = await query;
 
     if (error) {
-      console.error("Users fetch error:", error);
+      console.error("Profiles fetch error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(users || []);
+    return NextResponse.json(profiles || []);
   } catch (err: unknown) {
     console.error("Users GET error:", err);
     const message =

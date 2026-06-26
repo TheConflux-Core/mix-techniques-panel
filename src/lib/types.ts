@@ -84,13 +84,19 @@ export const STATUS_OPTIONS = [
   { value: "scored", label: "Scored" },
 ] as const;
 
-export interface User {
+export interface Profile {
   id: string;
-  name: string | null;
-  email: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
   location: string | null;
+  genre: string | null;
+  website: string | null;
+  social_links: Record<string, string>;
+  role: string;
   is_judge: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 export const STATUS_COLORS: Record<string, string> = {

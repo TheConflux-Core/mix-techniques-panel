@@ -26,19 +26,19 @@ export async function PATCH(
       );
     }
 
-    const { data: user, error } = await supabase
-      .from("users")
+    const { data: profile, error } = await supabase
+      .from("profiles")
       .update({ is_judge })
       .eq("id", id)
       .select()
       .single();
 
     if (error) {
-      console.error("User update error:", error);
+      console.error("Profile update error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(user);
+    return NextResponse.json(profile);
   } catch (err: unknown) {
     console.error("User PATCH error:", err);
     const message =
