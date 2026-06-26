@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function PATCH(
   request: NextRequest,
@@ -26,7 +27,9 @@ export async function PATCH(
       );
     }
 
-    const { data: profile, error } = await supabase
+    // Use service role to bypass RLS for admin operations
+    const admin = createAdminClient();
+    const { data: profile, error } = await admin
       .from("profiles")
       .update({ is_judge })
       .eq("id", id)
