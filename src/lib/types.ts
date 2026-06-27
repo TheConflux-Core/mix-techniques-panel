@@ -65,7 +65,33 @@ export interface Score {
   audience_score: number | null;
   notes: string | null;
   golden_knob: boolean;
+  // Full 7-metric breakdown (host scores)
+  metric_low_end: number | null;
+  metric_clarity: number | null;
+  metric_balance: number | null;
+  metric_mid_range: number | null;
+  metric_image: number | null;
+  metric_high_end: number | null;
+  metric_overall: number | null;
+  // Combined + viewer data
+  combined_score: number | null;
+  viewer_avg: number | null;
+  viewer_vote_count: number | null;
+  scoring_formula: string | null;
+  // Per-judge scores
+  judge_scores: Record<string, JudgeScoreMetrics>;
   created_at: string;
+}
+
+export interface JudgeScoreMetrics {
+  lowEnd?: number;
+  clarity?: number;
+  balance?: number;
+  midRange?: number;
+  image?: number;
+  highEnd?: number;
+  overall?: number;
+  avg?: number;
 }
 
 export const GENRE_OPTIONS = [

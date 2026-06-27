@@ -6,8 +6,10 @@ export interface MetricScores {
   lowEnd: number;
   clarity: number;
   balance: number;
-  dynamics: number;
+  midRange: number;
   image: number;
+  highEnd: number;
+  overall: number;
 }
 
 interface LiveScoresProps {
@@ -18,22 +20,27 @@ interface LiveScoresProps {
   onToggleVoting: () => void;
   locked: boolean;
   votingClosed: boolean;
+  saving?: boolean;
 }
 
 const METRIC_KEYS: (keyof MetricScores)[] = [
   "lowEnd",
   "clarity",
   "balance",
-  "dynamics",
+  "midRange",
   "image",
+  "highEnd",
+  "overall",
 ];
 
 const METRIC_LABELS: Record<string, string> = {
   lowEnd: "LOW END",
   clarity: "CLARITY",
   balance: "BALANCE",
-  dynamics: "DYNAMICS",
+  midRange: "MID RANGE",
   image: "IMAGE",
+  highEnd: "HIGH END",
+  overall: "OVERALL",
 };
 
 function avgOf(metrics: MetricScores): number {
@@ -68,6 +75,7 @@ export default function LiveScores({
   onToggleVoting,
   locked,
   votingClosed,
+  saving = false,
 }: LiveScoresProps) {
   const hostAvg = useMemo(() => avgOf(hostMetrics), [hostMetrics]);
   const viewerAvg = useMemo(() => avgOf(viewerMetrics), [viewerMetrics]);
@@ -210,14 +218,16 @@ export default function LiveScores({
           </button>
           <button
             onClick={onLockScore}
-            disabled={locked}
+            disabled={locked || saving}
             className={`font-[family-name:var(--font-mono)] text-xs uppercase tracking-wider px-4 py-2 rounded font-bold transition-colors ${
               locked
                 ? "border border-green-600/40 text-green-400/50 bg-green-900/10 cursor-default"
+                : saving
+                ? "border border-[#E89B2E]/40 text-[#E89B2E] bg-[#E89B2E]/10 cursor-wait"
                 : "border border-[#D4A843] text-[#D4A843] bg-transparent hover:bg-[#D4A843]/10 cursor-pointer"
             }`}
           >
-            {locked ? "🔒 Score Locked" : "🔒 Lock Score"}
+            {locked ? "🔒 Score Locked" : saving ? "⏳ Saving…" : "🔒 Lock Score"}
           </button>
         </div>
       </div>

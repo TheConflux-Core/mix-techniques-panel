@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// GET /api/leaderboard — season leaderboard with average scores
+/**
+ * GET /api/leaderboard
+ *
+ * Returns scored submissions ranked by combined_score.
+ * Uses denormalized combined_score on submissions for fast queries.
+ * Falls back to computing from scores table if combined_score is null.
+ *
+ * Query params:
+ *   season_id — filter by season
+ *   limit — max results (default 20)
+ */
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -10,12 +20,24 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const seasonId = searchParams.get("season_id");
+    const limit = Number(searchParams.get("limit")) || 20;
 
-    // Get scored submissions with their scores
+    // Fast path: use denormalized combined_score on submissions
     let query = supabase
       .from("submissions")
-      .select("id, name, genre, track_title, season_id, scores(host_score, metric_low_end, metric_clarity, metric_balance, metric_dynamics, metric_image)")
-      .eq("status", "scored");
+      .select(`
+        id, name, genre, track_title, location, season_id, combined_score,
+        scores(
+          host_score, combined_score, viewer_avg, viewer_vote_count,
+          metric_low_end, metric_clarity, metric_balance, metric_mid_range,
+          metric_image, metric_high_end, metric_overall,
+          judge_scores, golden_knob, created_at
+        )
+      `)
+      .eq("status", "scored")
+      .not("combined_score", "is", null)
+      .order("combined_score", { ascending: false })
+      .limit(limit);
 
     if (seasonId) query = query.eq("season_id", Number(seasonId));
 
@@ -25,41 +47,39 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch leaderboard" }, { status: 500 });
     }
 
-    // Calculate averages
-    const leaderboard = (data || [])
-      .map((sub: any) => {
-        const scores = sub.scores || [];
-        if (scores.length === 0) return null;
+    const leaderboard = (data || []).map((sub: any, index: number) => {
+      const scores = sub.scores || [];
+      const latestScore = scores.length > 0 ? scores[scores.length - 1] : null;
 
-        const hostScores = scores.filter((s: any) => s.host_score != null).map((s: any) => s.host_score);
-        const avgHost = hostScores.length > 0
-          ? hostScores.reduce((a: number, b: number) => a + b, 0) / hostScores.length
-          : null;
-
-        const metrics = ["metric_low_end", "metric_clarity", "metric_balance", "metric_dynamics", "metric_image"];
-        const avgMetrics: Record<string, number | null> = {};
-        for (const m of metrics) {
-          const vals = scores.filter((s: any) => s[m] != null).map((s: any) => s[m]);
-          avgMetrics[m] = vals.length > 0 ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
-        }
-
-        const allAvg = Object.values(avgMetrics).filter((v): v is number => v !== null);
-        const overallAvg = allAvg.length > 0 ? allAvg.reduce((a, b) => a + b, 0) / allAvg.length : avgHost;
-
-        return {
-          submission_id: sub.id,
-          name: sub.name,
-          genre: sub.genre,
-          track_title: sub.track_title,
-          season_id: sub.season_id,
-          avg_host_score: avgHost ? Math.round(avgHost * 10) / 10 : null,
-          avg_metrics: avgMetrics,
-          overall_avg: overallAvg ? Math.round(overallAvg * 10) / 10 : null,
-          score_count: scores.length,
-        };
-      })
-      .filter(Boolean)
-      .sort((a: any, b: any) => (b.overall_avg || 0) - (a.overall_avg || 0));
+      return {
+        rank: index + 1,
+        submission_id: sub.id,
+        name: sub.name,
+        genre: sub.genre,
+        track_title: sub.track_title,
+        location: sub.location,
+        season_id: sub.season_id,
+        combined_score: sub.combined_score,
+        host_avg: latestScore?.host_score ?? null,
+        viewer_avg: latestScore?.viewer_avg ?? null,
+        viewer_votes: latestScore?.viewer_vote_count ?? 0,
+        golden_knob: latestScore?.golden_knob ?? false,
+        score_count: scores.length,
+        metrics: latestScore
+          ? {
+              lowEnd: latestScore.metric_low_end,
+              clarity: latestScore.metric_clarity,
+              balance: latestScore.metric_balance,
+              midRange: latestScore.metric_mid_range,
+              image: latestScore.metric_image,
+              highEnd: latestScore.metric_high_end,
+              overall: latestScore.metric_overall,
+            }
+          : null,
+        judge_scores: latestScore?.judge_scores ?? {},
+        scored_at: latestScore?.created_at ?? null,
+      };
+    });
 
     return NextResponse.json(leaderboard);
   } catch (err: any) {

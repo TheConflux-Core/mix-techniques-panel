@@ -48,8 +48,8 @@ export default function EpisodeRunnerClient() {
   const [timerRunning, setTimerRunning] = useState(false);
 
   // Scoring & Audio state
-  const defaultMetrics: MetricScores = { lowEnd: 7, clarity: 7, balance: 7, dynamics: 7, image: 7 };
-  const emptyMetrics: MetricScores = { lowEnd: 0, clarity: 0, balance: 0, dynamics: 0, image: 0 };
+  const defaultMetrics: MetricScores = { lowEnd: 7, clarity: 7, balance: 7, midRange: 7, image: 7, highEnd: 7, overall: 7 };
+  const emptyMetrics: MetricScores = { lowEnd: 0, clarity: 0, balance: 0, midRange: 0, image: 0, highEnd: 0, overall: 0 };
   const [hostMetrics, setHostMetrics] = useState<MetricScores>({ ...defaultMetrics });
   const [viewerMetrics, setViewerMetrics] = useState<MetricScores>({ ...defaultMetrics });
   const [viewerVotes, setViewerVotes] = useState(0);
@@ -447,6 +447,10 @@ export default function EpisodeRunnerClient() {
   }, [pushSegment]);
 
   const handleActivateContestant = useCallback((index: number) => {
+    // Warn if current contestant's score isn't locked
+    if (scoreLocked === false && contestants[activeContestantIndex] && currentSegment !== "COLD_OPEN") {
+      if (!window.confirm("Score not locked for current contestant. Move on anyway? Unsaved scores will be lost.")) return;
+    }
     setActiveContestantIndex(index);
     setHostMetrics({ ...defaultMetrics });
     setScoreLocked(false);
@@ -466,7 +470,56 @@ export default function EpisodeRunnerClient() {
   const handleTimerStop = useCallback(() => setTimerRunning(false), []);
   const handleTimerReset = useCallback(() => { setTimerRunning(false); setTimerSeconds(0); }, []);
 
-  const handleLockScore = useCallback(() => { setScoreLocked(true); pushLockScore(); }, [pushLockScore]);
+  const [savingScore, setSavingScore] = useState(false);
+  const [saveToast, setSaveToast] = useState<{ text: string; type: "ok" | "err" } | null>(null);
+
+  const showToast = useCallback((text: string, type: "ok" | "err") => {
+    setSaveToast({ text, type });
+    setTimeout(() => setSaveToast(null), 4000);
+  }, []);
+
+  const handleLockScore = useCallback(async () => {
+    setScoreLocked(true);
+    pushLockScore();
+
+    // Persist score to Supabase
+    const current = contestants[activeContestantIndex];
+    if (!current || !episode) return;
+
+    setSavingScore(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const res = await fetch("/api/scores/finalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          submission_id: current.id,
+          episode_id: episode.id,
+          host_metrics: hostMetrics,
+          viewer_metrics: viewerVotes > 0 ? viewerMetrics : null,
+          viewer_vote_count: viewerVotes,
+        }),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        showToast(`Score saved: ${result.combined_score} (host ${result.host_avg} × 0.6 + viewer ${result.viewer_avg} × 0.4)`, "ok");
+        // Update contestant status locally
+        setContestants((prev) =>
+          prev.map((c) => c.id === current.id ? { ...c, status: "scored" } : c)
+        );
+      } else {
+        const errBody = await res.json();
+        showToast(`Score save failed: ${errBody.error || "unknown"}`, "err");
+      }
+    } catch (err) {
+      showToast(`Score save error: ${err}`, "err");
+    } finally {
+      setSavingScore(false);
+    }
+  }, [pushLockScore, contestants, activeContestantIndex, episode, hostMetrics, viewerMetrics, viewerVotes, supabase, showToast]);
   const handleToggleVoting = useCallback(() => {
     if (votingClosed) {
       setVotingClosed(false);
@@ -878,6 +931,7 @@ export default function EpisodeRunnerClient() {
                       onToggleVoting={handleToggleVoting}
                       locked={scoreLocked}
                       votingClosed={votingClosed}
+                      saving={savingScore}
                     />
                   </div>
 
@@ -916,6 +970,21 @@ export default function EpisodeRunnerClient() {
           )}
         </div>
       </main>
+
+      {/* Score save toast */}
+      {saveToast && (
+        <div
+          className="fixed bottom-8 left-1/2 -translate-x-1/2 text-xs tracking-[2px] px-6 py-3 rounded z-[200] pointer-events-none transition-all duration-300"
+          style={{
+            background: "linear-gradient(180deg, rgba(42,24,16,0.95), rgba(26,15,10,0.98))",
+            border: `1px solid ${saveToast.type === "ok" ? "rgba(76,175,80,0.4)" : "rgba(196,57,42,0.4)"}`,
+            color: saveToast.type === "ok" ? "#4CAF50" : "#C4392A",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+          }}
+        >
+          {saveToast.text}
+        </div>
+      )}
     </div>
   );
 }

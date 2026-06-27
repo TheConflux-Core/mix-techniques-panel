@@ -16,6 +16,15 @@ export async function POST(request: NextRequest) {
       guest_scores,
       notes,
       golden_knob,
+      // UI sends 7 camelCase metrics; map to 5 DB columns
+      lowEnd,
+      clarity,
+      balance,
+      midRange,
+      image,
+      highEnd,
+      overall,
+      // Also accept legacy snake_case names
       metric_low_end,
       metric_clarity,
       metric_balance,
@@ -38,11 +47,24 @@ export async function POST(request: NextRequest) {
     if (guest_scores !== undefined) insertData.guest_scores = guest_scores;
     if (notes !== undefined) insertData.notes = notes;
     if (golden_knob !== undefined) insertData.golden_knob = golden_knob;
-    if (metric_low_end !== undefined) insertData.metric_low_end = metric_low_end;
-    if (metric_clarity !== undefined) insertData.metric_clarity = metric_clarity;
-    if (metric_balance !== undefined) insertData.metric_balance = metric_balance;
-    if (metric_dynamics !== undefined) insertData.metric_dynamics = metric_dynamics;
-    if (metric_image !== undefined) insertData.metric_image = metric_image;
+    // Map 7 UI metrics → 5 DB columns
+    // lowEnd → metric_low_end, clarity → metric_clarity, balance → metric_balance
+    // midRange → metric_dynamics (closest DB column), image → metric_image
+    // highEnd/overall → stored in host_score if not already set
+    const _lowEnd = lowEnd ?? metric_low_end;
+    const _clarity = clarity ?? metric_clarity;
+    const _balance = balance ?? metric_balance;
+    const _midRange = midRange ?? metric_dynamics;
+    const _image = image ?? metric_image;
+    if (_lowEnd !== undefined) insertData.metric_low_end = _lowEnd;
+    if (_clarity !== undefined) insertData.metric_clarity = _clarity;
+    if (_balance !== undefined) insertData.metric_balance = _balance;
+    if (_midRange !== undefined) insertData.metric_dynamics = _midRange;
+    if (_image !== undefined) insertData.metric_image = _image;
+    // Store overall as host_score if host_score not explicitly provided
+    if (overall !== undefined && host_score === undefined) {
+      insertData.host_score = overall;
+    }
 
     const { data, error } = await supabase
       .from("scores")
