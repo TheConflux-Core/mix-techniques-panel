@@ -596,8 +596,6 @@ export default function EpisodeRunnerClient() {
   const handleBringOnAir = useCallback(async () => {
     const current = contestants[activeContestantIndex];
     if (!current) return;
-    const backstageUrl = current.backstage_room_url;
-    if (!backstageUrl) return;
     // Update submission status → "selected" so backstage page shows "YOU'RE LIVE!"
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -609,35 +607,18 @@ export default function EpisodeRunnerClient() {
         }).catch(() => {});
       }
     } catch {} // Non-blocking
-    // Load camera feed to slot 0
-    sendMessage("camera-feed", {
-      slot: 0,
-      url: backstageUrl,
-      label: current.name,
-      role: "artist",
+    // Push contestant name to overlays
+    sendMessage("contestant-update", {
+      name: current.name,
+      city: current.location || "",
+      genre: current.genre || "",
+      handle: current.social_links?.instagram || "",
     });
-    // Set layout to 3up
+    // Set layout to 3up (host + judge + contestant)
     sendMessage("camera-layout", { layout: "3up" });
     // Switch segment to THE_INTERVIEW
     handleSegmentChange("THE_INTERVIEW");
   }, [contestants, activeContestantIndex, sendMessage, handleSegmentChange]);
-
-  const handleCameraClear = useCallback(async (slotIndex: number) => {
-    // When the artist camera (slot 0) is cleared, mark submission as "aired"
-    if (slotIndex !== 0) return;
-    const current = contestants[activeContestantIndex];
-    if (!current) return;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await fetch(`/api/submissions/${current.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ status: "aired" }),
-        }).catch(() => {});
-      }
-    } catch {} // Non-blocking
-  }, [contestants, activeContestantIndex]);
 
   // ─── Render ───────────────────────────────────────────────
   const nextStatus = episode ? getNextStatus(episode.status) : null;
@@ -939,9 +920,9 @@ export default function EpisodeRunnerClient() {
                   <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 mt-6">
                     <CameraControl
                       sendMessage={sendMessage}
-                      contestants={contestants}
-                      activeContestantIndex={activeContestantIndex}
-                      onClear={handleCameraClear}
+                      hostName="Don Ziglioni"
+                      judgeName={episode?.guest_judges?.[0] || ""}
+                      contestantName={contestants[activeContestantIndex]?.name || ""}
                     />
                     <BackstageStatus
                       contestants={contestants}
@@ -960,8 +941,7 @@ export default function EpisodeRunnerClient() {
                     hasBackup={hasBackup}
                     currentSegment={currentSegment}
                     canBringOnAir={
-                      !!contestants[activeContestantIndex] &&
-                      !!contestants[activeContestantIndex].backstage_room_url
+                      !!contestants[activeContestantIndex]
                     }
                   />
                 </>
