@@ -8,6 +8,7 @@ interface SegmentControlProps {
 }
 
 const SEGMENTS = [
+  { key: "COLD_OPEN", label: "🎬 COLD OPEN" },
   { key: "THE_PULL", label: "🎲 THE PULL" },
   { key: "THE_PLAY", label: "▶ THE PLAY" },
   { key: "THE_CRITIQUE", label: "🔍 THE CRITIQUE" },

@@ -55,6 +55,10 @@ export default function EpisodeRunnerClient() {
   const [viewerVotes, setViewerVotes] = useState(0);
   const [scoreLocked, setScoreLocked] = useState(false);
   const [votingClosed, setVotingClosed] = useState(true);
+  // Track whether we've received initial WS state so we don't let server override local defaults
+  const [wsStateReceived, setWsStateReceived] = useState(false);
+  // Per-contestant combined scores for queue display
+  const [contestantScores, setContestantScores] = useState<Record<string, number>>({});
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<{ title: string; artist: string; url: string } | null>(null);
   const [volume, setVolume] = useState(70);
@@ -68,7 +72,16 @@ export default function EpisodeRunnerClient() {
   const wsInitDoneFor = useRef<string | null>(null);
   const handleWSMessage = useCallback((msg: WSMessage) => {
     const d = msg.data as any;
-    if ((msg.type === "score-update" || msg.type === "state") && d.metrics) {
+
+    // Mark that we've received initial state from WS server
+    if (msg.type === "state") {
+      setWsStateReceived(true);
+    }
+
+    // Only apply host metrics from explicit score-update (host-panel faders),
+    // NOT from the initial state broadcast — server metrics start at 0,
+    // which would zero out our default 7s.
+    if (msg.type === "score-update" && d.metrics) {
       setHostMetrics((prev) => {
         const next = { ...prev };
         (Object.keys(d.metrics) as (keyof MetricScores)[]).forEach((k) => {
@@ -77,15 +90,18 @@ export default function EpisodeRunnerClient() {
         return next;
       });
     }
-    if (msg.type === "state" && d.viewerMetrics) {
-      setViewerMetrics((prev) => {
-        const next = { ...prev };
-        (Object.keys(d.viewerMetrics) as (keyof MetricScores)[]).forEach((k) => {
-          if (d.viewerMetrics[k] !== undefined) next[k] = d.viewerMetrics[k];
+    // Apply viewer metrics from state broadcast (these are real aggregated votes, ok to sync)
+    if (msg.type === "state" && d.viewerVotes !== undefined && d.viewerVotes > 0) {
+      setViewerVotes(d.viewerVotes);
+      if (d.viewerMetrics) {
+        setViewerMetrics((prev) => {
+          const next = { ...prev };
+          (Object.keys(d.viewerMetrics) as (keyof MetricScores)[]).forEach((k) => {
+            if (d.viewerMetrics[k] !== undefined) next[k] = d.viewerMetrics[k];
+          });
+          return next;
         });
-        return next;
-      });
-      if (d.viewerVotes !== undefined) setViewerVotes(d.viewerVotes);
+      }
     }
     if (msg.type === "viewer-score-update" && d.metrics) {
       setViewerMetrics((prev) => {
@@ -115,9 +131,8 @@ export default function EpisodeRunnerClient() {
       setScoreLocked(false);
       setVotingClosed(false);
     }
-    if (msg.type === "state" && d.votingOpen !== undefined) {
-      setVotingClosed(!d.votingOpen);
-    }
+    // Voting state — only accept from explicit voting-open/voting-closed messages
+    // (not from state broadcast, which doesn't include votingOpen)
     if (msg.type === "voting-open") {
       setVotingClosed(false);
     }
@@ -453,6 +468,8 @@ export default function EpisodeRunnerClient() {
     }
     setActiveContestantIndex(index);
     setHostMetrics({ ...defaultMetrics });
+    setViewerMetrics({ ...defaultMetrics });
+    setViewerVotes(0);
     setScoreLocked(false);
     setVotingClosed(false);
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
@@ -506,10 +523,11 @@ export default function EpisodeRunnerClient() {
       if (res.ok) {
         const result = await res.json();
         showToast(`Score saved: ${result.combined_score} (host ${result.host_avg} × 0.6 + viewer ${result.viewer_avg} × 0.4)`, "ok");
-        // Update contestant status locally
+        // Update contestant status locally and cache combined score for queue display
         setContestants((prev) =>
           prev.map((c) => c.id === current.id ? { ...c, status: "scored" } : c)
         );
+        setContestantScores((prev) => ({ ...prev, [current.id]: result.combined_score }));
       } else {
         const errBody = await res.json();
         showToast(`Score save failed: ${errBody.error || "unknown"}`, "err");
@@ -875,6 +893,7 @@ export default function EpisodeRunnerClient() {
                       contestants={contestants}
                       activeIndex={activeContestantIndex}
                       onActivate={handleActivateContestant}
+                      contestantScores={contestantScores}
                     />
                     <div className="space-y-6">
                       <SegmentControl

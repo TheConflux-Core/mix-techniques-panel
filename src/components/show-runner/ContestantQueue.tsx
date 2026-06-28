@@ -7,6 +7,7 @@ interface ContestantQueueProps {
   contestants: Submission[];
   activeIndex: number;
   onActivate: (index: number) => void;
+  contestantScores?: Record<string, number>;
 }
 
 function getStatusIcon(status: string, isActive: boolean): string {
@@ -32,7 +33,7 @@ function getStatusIconClass(status: string, isActive: boolean): string {
   }
 }
 
-export default function ContestantQueue({ contestants, activeIndex, onActivate }: ContestantQueueProps) {
+export default function ContestantQueue({ contestants, activeIndex, onActivate, contestantScores }: ContestantQueueProps) {
   // Sort by pull_order (nulls last)
   const sorted = [...contestants].sort((a, b) => {
     const aOrder = (a as any).pull_order ?? Infinity;
@@ -113,10 +114,10 @@ export default function ContestantQueue({ contestants, activeIndex, onActivate }
                 {contestant.status}
               </span>
 
-              {/* Score placeholder */}
+              {/* Score display */}
               {(contestant.status === "aired" || contestant.status === "scored") && (
-                <span className="font-[family-name:var(--font-mono)] text-[#D4A843]/40 text-xs w-8 text-right">
-                  —
+                <span className="font-[family-name:var(--font-mono)] text-[#D4A843] text-xs w-8 text-right font-bold">
+                  {contestantScores?.[contestant.id]?.toFixed(1) ?? "—"}
                 </span>
               )}
             </button>
