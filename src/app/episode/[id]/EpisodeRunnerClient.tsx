@@ -39,7 +39,6 @@ export default function EpisodeRunnerClient() {
   const [selectedSubmissionId, setSelectedSubmissionId] = useState("");
   const [showAssignPanel, setShowAssignPanel] = useState(false);
   const [pulling, setPulling] = useState(false);
-  const [lastPulled, setLastPulled] = useState<Submission | null>(null);
 
   // Live control state
   const [currentSegment, setCurrentSegment] = useState("COLD_OPEN");
@@ -388,7 +387,6 @@ export default function EpisodeRunnerClient() {
         }),
       }).catch(() => {});
 
-      setLastPulled(submission);
       await Promise.all([fetchContestants(episodeId, session.access_token), fetchAvailable()]);
     } catch (err: any) {
       setError(err.message);
@@ -397,27 +395,6 @@ export default function EpisodeRunnerClient() {
     }
   };
 
-  const handleDrumReveal = () => {
-    if (!lastPulled) return;
-    // Send drum-reveal to overlay (pure theater — name already known backstage)
-    sendMessage("drum-reveal", {
-      name: lastPulled.name,
-      city: lastPulled.location || "",
-      genre: lastPulled.genre || "",
-      trackTitle: lastPulled.track_title || "",
-    });
-    // Also update overlays with contestant + track info
-    pushContestant({
-      name: lastPulled.name,
-      city: lastPulled.location || "",
-      genre: lastPulled.genre || "",
-      handle: lastPulled.social_links?.instagram || "",
-    });
-    if (lastPulled.track_title) {
-      pushTrack({ title: lastPulled.track_title, artist: lastPulled.name, url: lastPulled.track_signed_url || lastPulled.track_url });
-    }
-    setLastPulled(null);
-  };
 
   const handleRemove = async (submissionId: string) => {
     setRemoving(submissionId);
@@ -754,20 +731,6 @@ export default function EpisodeRunnerClient() {
                     >
                       {pulling ? "Drawing..." : "🎲 Pre-Pull"}
                     </button>
-                    {lastPulled && (
-                      <>
-                        <div className="font-[family-name:var(--font-mono)] text-xs text-[#F0E6D3]/60 px-2">
-                          <span className="text-[#D4A843] font-bold">{lastPulled.name}</span>
-                          {lastPulled.location && <span className="text-[#F0E6D3]/40"> — {lastPulled.location}</span>}
-                        </div>
-                        <button
-                          onClick={handleDrumReveal}
-                          className="font-[family-name:var(--font-mono)] text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-500/60 px-3 py-2 rounded transition-colors animate-pulse"
-                        >
-                          🥁 Drum
-                        </button>
-                      </>
-                    )}
                   </div>
 
                   {/* Right: status transition */}
