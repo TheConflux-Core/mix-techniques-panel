@@ -348,7 +348,7 @@ export default function EpisodeRunnerClient() {
     }
   };
 
-  const handlePull = async () => {
+  const handlePrePull = async () => {
     setPulling(true);
     setError(null);
     try {
@@ -362,10 +362,7 @@ export default function EpisodeRunnerClient() {
       if (!pullRes.ok) { const body = await pullRes.json(); throw new Error(body.error || "Failed to pull"); }
       const { submission, pool_size } = await pullRes.json();
 
-      // 2. Trigger overlay animation (name hidden)
-      pushPullStart(pool_size);
-
-      // 3. Assign to this episode
+      // 2. Assign to this episode
       const nextOrder = contestants.length > 0
         ? Math.max(...contestants.map((c) => c.pull_order || 0)) + 1
         : 1;
@@ -376,6 +373,21 @@ export default function EpisodeRunnerClient() {
       });
       if (!assignRes.ok) throw new Error("Failed to assign pulled submission");
 
+      // 3. Notify Discord (names-pulled + live-episode-chat)
+      fetch("/api/discord/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "name-pulled",
+          name: submission.name,
+          location: submission.location || "",
+          genre: submission.genre || "",
+          trackTitle: submission.track_title || "",
+          episodeNumber: episode?.episode_number,
+          channels: ["names-pulled", "live-chat"],
+        }),
+      }).catch(() => {});
+
       setLastPulled(submission);
       await Promise.all([fetchContestants(episodeId, session.access_token), fetchAvailable()]);
     } catch (err: any) {
@@ -385,14 +397,16 @@ export default function EpisodeRunnerClient() {
     }
   };
 
-  const handleAnnounce = async () => {
+  const handleDrumReveal = () => {
     if (!lastPulled) return;
-    pushPullAnnounce({
+    // Send drum-reveal to overlay (pure theater — name already known backstage)
+    sendMessage("drum-reveal", {
       name: lastPulled.name,
       city: lastPulled.location || "",
       genre: lastPulled.genre || "",
       trackTitle: lastPulled.track_title || "",
     });
+    // Also update overlays with contestant + track info
     pushContestant({
       name: lastPulled.name,
       city: lastPulled.location || "",
@@ -734,19 +748,25 @@ export default function EpisodeRunnerClient() {
                       {showAssignPanel ? "Hide Assign" : "+ Assign"}
                     </button>
                     <button
-                      onClick={handlePull}
+                      onClick={handlePrePull}
                       disabled={pulling || !controlsEnabled}
                       className="font-[family-name:var(--font-mono)] text-xs text-[#D4A843] hover:text-[#E89B2E] border border-[#D4A843]/30 hover:border-[#D4A843]/60 px-3 py-2 rounded transition-colors disabled:opacity-30"
                     >
-                      {pulling ? "Drawing..." : "🎲 Pull"}
+                      {pulling ? "Drawing..." : "🎲 Pre-Pull"}
                     </button>
                     {lastPulled && (
-                      <button
-                        onClick={handleAnnounce}
-                        className="font-[family-name:var(--font-mono)] text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-500/60 px-3 py-2 rounded transition-colors animate-pulse"
-                      >
-                        📢 Announce
-                      </button>
+                      <>
+                        <div className="font-[family-name:var(--font-mono)] text-xs text-[#F0E6D3]/60 px-2">
+                          <span className="text-[#D4A843] font-bold">{lastPulled.name}</span>
+                          {lastPulled.location && <span className="text-[#F0E6D3]/40"> — {lastPulled.location}</span>}
+                        </div>
+                        <button
+                          onClick={handleDrumReveal}
+                          className="font-[family-name:var(--font-mono)] text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-500/60 px-3 py-2 rounded transition-colors animate-pulse"
+                        >
+                          🥁 Drum
+                        </button>
+                      </>
                     )}
                   </div>
 
