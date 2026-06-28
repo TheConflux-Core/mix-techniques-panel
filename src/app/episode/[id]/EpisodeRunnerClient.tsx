@@ -372,7 +372,18 @@ export default function EpisodeRunnerClient() {
       });
       if (!assignRes.ok) throw new Error("Failed to assign pulled submission");
 
-      // 3. Notify Discord (names-pulled + live-episode-chat)
+      // 3. Push contestant to overlay (so drum-reveal has the name)
+      pushContestant({
+        name: submission.name,
+        city: submission.location || "",
+        genre: submission.genre || "",
+        handle: submission.social_links?.instagram || "",
+      });
+      if (submission.track_title) {
+        pushTrack({ title: submission.track_title, artist: submission.name, url: submission.track_signed_url || submission.track_url });
+      }
+
+      // 4. Notify Discord (names-pulled + live-episode-chat)
       fetch("/api/discord/notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
