@@ -92,11 +92,18 @@ function buildEmbed(body: NotifyBody) {
 }
 
 export async function POST(request: NextRequest) {
+  // Allow cross-origin from WS server (host panel)
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
   try {
     const body: NotifyBody = await request.json();
 
     if (!body.name) {
-      return NextResponse.json({ error: "name is required" }, { status: 400 });
+      return NextResponse.json({ error: "name is required" }, { status: 400, headers: corsHeaders });
     }
 
     // Determine which channels to notify
@@ -132,9 +139,20 @@ export async function POST(request: NextRequest) {
       r.status === "fulfilled" ? r.value : { status: "rejected", reason: r.reason }
     );
 
-    return NextResponse.json({ ok: true, results: summary });
+    return NextResponse.json({ ok: true, results: summary }, { headers: corsHeaders });
   } catch (err: any) {
     console.error("[Discord] Notify error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: corsHeaders });
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
 }
