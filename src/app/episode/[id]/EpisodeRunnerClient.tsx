@@ -129,10 +129,13 @@ export default function EpisodeRunnerClient() {
       setViewerMetrics({ ...defaultMetrics });
       setViewerVotes(0);
       setScoreLocked(false);
-      setVotingClosed(false);
+      // Don't change voting state — server persists it separately
     }
-    // Voting state — only accept from explicit voting-open/voting-closed messages
-    // (not from state broadcast, which doesn't include votingOpen)
+    // Voting state — sync from server's persisted state on connect,
+    // and from explicit voting-open/voting-closed messages
+    if (msg.type === "state" && d.votingOpen !== undefined) {
+      setVotingClosed(!d.votingOpen);
+    }
     if (msg.type === "voting-open") {
       setVotingClosed(false);
     }
