@@ -522,49 +522,43 @@ export default function EpisodeRunnerClient() {
 
   const handleLockScore = useCallback(async () => {
     setScoreLocked(true);
-    pushLockScore();
 
-    // Persist score to Supabase
+    // Send lock-score via WS with submission/episode IDs — server.js handles Supabase persistence
     const current = contestants[activeContestantIndex];
-    if (!current || !episode) return;
-
-    setSavingScore(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const res = await fetch("/api/scores/finalize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({
-          submission_id: current.id,
-          episode_id: episode.id,
-          host_metrics: hostMetrics,
-          viewer_metrics: viewerVotes > 0 ? viewerMetrics : null,
-          viewer_vote_count: viewerVotes,
-          judge_metrics: judgeCount > 0 ? judgeMetrics : null,
-          judge_count: judgeCount,
-        }),
-      });
-
-      if (res.ok) {
-        const result = await res.json();
-        showToast(`Score saved: ${result.combined_score} (host ${result.host_avg} × 0.6 + viewer ${result.viewer_avg} × 0.4)`, "ok");
-        // Update contestant status locally and cache combined score for queue display
-        setContestants((prev) =>
-          prev.map((c) => c.id === current.id ? { ...c, status: "scored" } : c)
-        );
-        setContestantScores((prev) => ({ ...prev, [current.id]: result.combined_score }));
-      } else {
-        const errBody = await res.json();
-        showToast(`Score save failed: ${errBody.error || "unknown"}`, "err");
-      }
-    } catch (err) {
-      showToast(`Score save error: ${err}`, "err");
-    } finally {
-      setSavingScore(false);
+    if (!current || !episode) {
+      pushLockScore();
+      return;
     }
-  }, [pushLockScore, contestants, activeContestantIndex, episode, hostMetrics, viewerMetrics, viewerVotes, supabase, showToast]);
+
+    pushLockScore({ submission_id: current.id, episode_id: episode.id });
+
+    // Compute combined score locally for immediate UI feedback
+    const hostAvg = Object.values(hostMetrics).reduce((a, b) => a + b, 0) / 7;
+    const viewerAvg = viewerVotes > 0 ? Object.values(viewerMetrics).filter(v => v > 0).reduce((a, b) => a + b, 0) / Math.max(Object.values(viewerMetrics).filter(v => v > 0).length, 1) : 0;
+    const judgeAvgVal = judgeCount > 0 ? Object.values(judgeMetrics).filter(v => v > 0).reduce((a, b) => a + b, 0) / Math.max(Object.values(judgeMetrics).filter(v => v > 0).length, 1) : 0;
+    let combined, formulaLabel;
+    if (judgeCount > 0 && viewerVotes > 0) {
+      combined = Math.round((hostAvg * 0.5 + judgeAvgVal * 0.3 + viewerAvg * 0.2) * 100) / 100;
+      formulaLabel = 'host × 0.5 + judge × 0.3 + viewer × 0.2';
+    } else if (judgeCount > 0) {
+      combined = Math.round((hostAvg * 0.6 + judgeAvgVal * 0.4) * 100) / 100;
+      formulaLabel = 'host × 0.6 + judge × 0.4';
+    } else if (viewerVotes > 0) {
+      combined = Math.round((hostAvg * 0.6 + viewerAvg * 0.4) * 100) / 100;
+      formulaLabel = 'host × 0.6 + viewer × 0.4';
+    } else {
+      combined = Math.round(hostAvg * 100) / 100;
+      formulaLabel = 'host only';
+    }
+
+    showToast(`Score locked: ${combined.toFixed(1)} (${formulaLabel})`, "ok");
+    setContestants((prev) =>
+      prev.map((c) => c.id === current.id ? { ...c, status: "scored" } : c)
+    );
+    setContestantScores((prev) => ({ ...prev, [current.id]: combined }));
+    setSavingScore(false);
+  }, [pushLockScore, contestants, activeContestantIndex, episode, hostMetrics, viewerMetrics, viewerVotes, judgeMetrics, judgeCount, showToast]);
+
   const handleToggleVoting = useCallback(() => {
     if (votingClosed) {
       setVotingClosed(false);

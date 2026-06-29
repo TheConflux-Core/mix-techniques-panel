@@ -155,10 +155,13 @@ export function useOverlaySocket(onMessage?: (msg: WSMessage) => void) {
     [sendMessage]
   );
 
-  /** Lock current scores */
-  const pushLockScore = useCallback(() => {
-    return sendMessage("lock-score", {});
-  }, [sendMessage]);
+  /** Lock current scores — forwards submission_id + episode_id for Supabase persistence */
+  const pushLockScore = useCallback(
+    (data?: { submission_id?: string; episode_id?: string }) => {
+      return sendMessage("lock-score", data || {});
+    },
+    [sendMessage]
+  );
 
   /** Push track play event to viewers */
   const pushPlayTrack = useCallback(
