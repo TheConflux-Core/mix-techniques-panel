@@ -52,6 +52,8 @@ export default function EpisodeRunnerClient() {
   const [hostMetrics, setHostMetrics] = useState<MetricScores>({ ...defaultMetrics });
   const [viewerMetrics, setViewerMetrics] = useState<MetricScores>({ ...defaultMetrics });
   const [viewerVotes, setViewerVotes] = useState(0);
+  const [judgeMetrics, setJudgeMetrics] = useState<MetricScores>({ ...emptyMetrics });
+  const [judgeCount, setJudgeCount] = useState(0);
   const [scoreLocked, setScoreLocked] = useState(false);
   const [votingClosed, setVotingClosed] = useState(true);
   // Track whether we've received initial WS state so we don't let server override local defaults
@@ -112,14 +114,28 @@ export default function EpisodeRunnerClient() {
       });
       if (d.votes !== undefined) setViewerVotes(d.votes);
     }
+    if (msg.type === "judge-score-update" && d.metrics) {
+      setJudgeMetrics((prev) => {
+        const next = { ...prev };
+        (Object.keys(d.metrics) as (keyof MetricScores)[]).forEach((k) => {
+          if (d.metrics[k] !== undefined) next[k] = d.metrics[k];
+        });
+        return next;
+      });
+      if (d.count !== undefined) setJudgeCount(d.count);
+    }
     if (msg.type === "reset-scores") {
       setHostMetrics({ ...defaultMetrics });
+      setJudgeMetrics({ ...emptyMetrics });
+      setJudgeCount(0);
       setScoreLocked(false);
     }
     if (msg.type === "next-contestant") {
       setHostMetrics({ ...defaultMetrics });
       setViewerMetrics({ ...defaultMetrics });
       setViewerVotes(0);
+      setJudgeMetrics({ ...emptyMetrics });
+      setJudgeCount(0);
       setScoreLocked(false);
       setVotingClosed(false);
     }
@@ -127,6 +143,8 @@ export default function EpisodeRunnerClient() {
       setHostMetrics({ ...defaultMetrics });
       setViewerMetrics({ ...defaultMetrics });
       setViewerVotes(0);
+      setJudgeMetrics({ ...emptyMetrics });
+      setJudgeCount(0);
       setScoreLocked(false);
       // Don't change voting state — server persists it separately
     }
@@ -475,6 +493,8 @@ export default function EpisodeRunnerClient() {
     setHostMetrics({ ...defaultMetrics });
     setViewerMetrics({ ...defaultMetrics });
     setViewerVotes(0);
+    setJudgeMetrics({ ...emptyMetrics });
+    setJudgeCount(0);
     setScoreLocked(false);
     setVotingClosed(false);
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
@@ -522,6 +542,8 @@ export default function EpisodeRunnerClient() {
           host_metrics: hostMetrics,
           viewer_metrics: viewerVotes > 0 ? viewerMetrics : null,
           viewer_vote_count: viewerVotes,
+          judge_metrics: judgeCount > 0 ? judgeMetrics : null,
+          judge_count: judgeCount,
         }),
       });
 
@@ -606,6 +628,8 @@ export default function EpisodeRunnerClient() {
     setHostMetrics({ ...defaultMetrics });
     setViewerMetrics({ ...defaultMetrics });
     setViewerVotes(0);
+    setJudgeMetrics({ ...emptyMetrics });
+    setJudgeCount(0);
     setScoreLocked(false);
     setVotingClosed(false);
   }, [sendMessage]);
@@ -924,6 +948,8 @@ export default function EpisodeRunnerClient() {
                       hostMetrics={hostMetrics}
                       viewerMetrics={viewerMetrics}
                       viewerVotes={viewerVotes}
+                      judgeMetrics={judgeMetrics}
+                      judgeCount={judgeCount}
                       onLockScore={handleLockScore}
                       onToggleVoting={handleToggleVoting}
                       locked={scoreLocked}

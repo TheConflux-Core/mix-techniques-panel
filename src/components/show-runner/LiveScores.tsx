@@ -16,6 +16,8 @@ interface LiveScoresProps {
   hostMetrics: MetricScores;
   viewerMetrics: MetricScores;
   viewerVotes: number;
+  judgeMetrics: MetricScores;
+  judgeCount: number;
   onLockScore: () => void;
   onToggleVoting: () => void;
   locked: boolean;
@@ -71,6 +73,8 @@ export default function LiveScores({
   hostMetrics,
   viewerMetrics,
   viewerVotes,
+  judgeMetrics,
+  judgeCount,
   onLockScore,
   onToggleVoting,
   locked,
@@ -79,10 +83,19 @@ export default function LiveScores({
 }: LiveScoresProps) {
   const hostAvg = useMemo(() => avgOf(hostMetrics), [hostMetrics]);
   const viewerAvg = useMemo(() => avgOf(viewerMetrics), [viewerMetrics]);
-  const combined = useMemo(
-    () => Math.round((hostAvg * 0.6 + viewerAvg * 0.4) * 10) / 10,
-    [hostAvg, viewerAvg]
-  );
+  const judgeAvg = useMemo(() => avgOf(judgeMetrics), [judgeMetrics]);
+  const combined = useMemo(() => {
+    if (judgeCount > 0 && viewerVotes > 0) return Math.round((hostAvg * 0.5 + judgeAvg * 0.3 + viewerAvg * 0.2) * 10) / 10;
+    if (judgeCount > 0) return Math.round((hostAvg * 0.6 + judgeAvg * 0.4) * 10) / 10;
+    if (viewerVotes > 0) return Math.round((hostAvg * 0.6 + viewerAvg * 0.4) * 10) / 10;
+    return hostAvg;
+  }, [hostAvg, viewerAvg, judgeAvg, viewerVotes, judgeCount]);
+  const formulaLabel = useMemo(() => {
+    if (judgeCount > 0 && viewerVotes > 0) return 'host × 0.5 + judge × 0.3 + viewer × 0.2';
+    if (judgeCount > 0) return 'host × 0.6 + judge × 0.4';
+    if (viewerVotes > 0) return 'host × 0.6 + viewer × 0.4';
+    return 'host only';
+  }, [viewerVotes, judgeCount]);
 
   return (
     <div className="card-float noise carbon-fiber-walnut rounded-xl p-6 relative overflow-hidden">
@@ -149,6 +162,36 @@ export default function LiveScores({
         </div>
       </div>
 
+      {/* JUDGE row — read-only display (only shown when judges have voted) */}
+      {judgeCount > 0 && (
+        <div className="flex items-center gap-3 mb-3">
+          <span className="font-[family-name:var(--font-mono)] text-xs text-[#F0E6D3] uppercase tracking-wider w-[60px] shrink-0 text-right">
+            Judges
+          </span>
+          <div className="flex-1 flex justify-around">
+            {METRIC_KEYS.map((key) => (
+              <div key={key} className="flex flex-col items-center">
+                <span
+                  className={`font-[family-name:var(--font-mono)] text-sm w-14 text-center ${
+                    judgeMetrics[key] > 0 ? "text-[#F0E6D3]" : "text-[#F0E6D3]/20"
+                  }`}
+                >
+                  {judgeMetrics[key] > 0 ? judgeMetrics[key].toFixed(1) : "—"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="w-24 text-center">
+            <span className="font-[family-name:var(--font-mono)] text-lg text-[#F0E6D3] font-bold">
+              {judgeAvg > 0 ? judgeAvg.toFixed(1) : "—"}
+            </span>
+            <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#F0E6D3]/30 ml-1">
+              ({judgeCount})
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* VIEWER row — read-only display (defaults to 7.0 when no votes) */}
       <div className="flex items-center gap-3 mb-4">
         <span className="font-[family-name:var(--font-mono)] text-xs text-[#E89B2E] uppercase tracking-wider w-[60px] shrink-0 text-right">
@@ -202,7 +245,7 @@ export default function LiveScores({
             {combined > 0 ? combined.toFixed(1) : "—"}
           </span>
           <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#F0E6D3]/20">
-            (host × 0.6 + viewer × 0.4)
+            ({formulaLabel})
           </span>
         </div>
         <div className="flex items-center gap-2">
