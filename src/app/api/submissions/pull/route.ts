@@ -125,6 +125,22 @@ export async function POST(request: NextRequest) {
       }).catch(() => {}); // Don't block on webhook failure
     }
 
+    // Notify Discord bot — add role + DM contestant (non-blocking)
+    const botUrl = process.env.DISCORD_BOT_URL;
+    if (botUrl && data) {
+      fetch(`${botUrl}/api/name-pulled`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          discord_handle: data.discord_handle,
+          track_title: data.track_title,
+          submission_id: data.id,
+          episode_id: data.episode_id,
+        }),
+      }).catch(() => {}); // Don't block on bot failure
+    }
+
     // Send WS notification for in-app badge (non-blocking)
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "wss://ws.mixtechniques.com";
     const wsHttpUrl = wsUrl.replace(/^wss:/, "https:").replace(/^ws:/, "http:");

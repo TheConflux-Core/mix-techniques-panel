@@ -37,6 +37,7 @@ export interface Submission {
   location: string | null;
   genre: "songwriter" | "producer" | "mix_engineer" | "multi";
   bio: string | null;
+  discord_handle: string | null;
   social_links: SocialLinks;
   track_url: string;
   track_signed_url: string | null;
