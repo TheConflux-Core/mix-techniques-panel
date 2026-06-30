@@ -74,6 +74,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       console.error("Assign contestant error:", error);
       return NextResponse.json({ error: "Failed to assign contestant" }, { status: 500 });
     }
+
+    // Notify Discord bot — add role + DM contestant (non-blocking)
+    const botUrl = process.env.DISCORD_BOT_URL;
+    if (botUrl && data) {
+      fetch(`${botUrl}/api/name-pulled`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          discord_handle: data.discord_handle,
+          track_title: data.track_title,
+          submission_id: data.id,
+          episode_id: data.episode_id,
+        }),
+      }).catch(() => {});
+    }
+
     return NextResponse.json(data);
   } catch (err: any) {
     console.error("Episode contestants POST error:", err);
