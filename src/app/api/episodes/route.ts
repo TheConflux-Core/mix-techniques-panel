@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { episode_number, title, air_date, season_id, guest_judges } = body;
+    const { episode_number, title, air_date, season_id, guest_judges, description } = body;
 
     if (!episode_number) {
       return NextResponse.json({ error: "episode_number is required" }, { status: 400 });
@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
     };
     if (title) insertData.title = title;
     if (air_date) insertData.air_date = air_date;
+    if (description) insertData.description = description;
     // guest_judges may arrive as a comma-separated string from the UI — normalize to array
     if (guest_judges) {
       if (Array.isArray(guest_judges)) {
